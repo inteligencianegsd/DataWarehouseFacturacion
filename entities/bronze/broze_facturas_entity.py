@@ -1,14 +1,13 @@
-from typing import Optional, Callable
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func, Boolean, BigInteger, Numeric
+from sqlalchemy import Column, String, DateTime, func, BigInteger, Numeric
 from sqlalchemy.orm import Session
 
 from models.base import Base
 from models.base_model import BaseModel
 
 
-class bronzeFacturaEntity(Base, BaseModel):
-    __tablename__ = "bronzeFactura"
-    __table_args__ = {"schema": "prueba_bi"}
+class BronzeFacturaEntity(Base, BaseModel):
+    __tablename__ = "fenix_facturas"
+    __table_args__ = {"schema": "bronze"}
 
     id_numfac = Column(BigInteger, primary_key=True)
     creation_date = Column(

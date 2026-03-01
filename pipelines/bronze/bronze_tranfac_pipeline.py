@@ -1,8 +1,8 @@
-from typing import Optional, Type, List, Dict
+from typing import Optional, List, Dict
 
 from common.session_manager import get_session
 from config.logging_pipeline import LoggingPipeline
-from entities.bronze.facturasEntity import bronzeFacturaEntity
+from entities.bronze.broze_tranfac_entity import BronzeTranfacEntity
 from etl.extract.db_extractor import DatabaseExtractor
 from etl.load.db_load import DWBatchedLoader
 from utils.RunMode import RunMode
@@ -12,8 +12,8 @@ from utils.source_spec import SourceSpec
 
 
 class DatabaseConfig:
-    db_alias_load: str = "QUANTA"
-    model_class: Type[bronzeFacturaEntity] = bronzeFacturaEntity
+    db_alias_load: str = "LOCAL"
+    model_class: BronzeTranfacEntity = BronzeTranfacEntity
     mode: ModePersistence = ModePersistence.INSERT
     conflict_cols: tuple[str] = None
     batch_size: int = 3000
@@ -21,20 +21,20 @@ class DatabaseConfig:
 
 
 class PipelineConfig:
-    pipeline_name: str = "Bronze Facturas Entity Pipeline"
+    pipeline_name: str = "Bronze Tranfac Entity Pipeline"
     mode_pipeline: RunMode = RunMode.INICIAL
 
     SOURCE_BY_MODE: Dict[RunMode, List[SourceSpec]] = {
         RunMode.INICIAL: [
-            SourceSpec("fenix", "FENIX", "initialization", "facturas.sql")
+            SourceSpec("fenix", "FENIX", "initialization", "tranfac.sql")
         ],
         RunMode.INCREMENTAL: [
-            SourceSpec("fenix", "FENIX", "incremental", "fenix_incremental.sql")
+            SourceSpec("fenix", "FENIX", "incremental", "tranfac_incremental.sql")
         ]
     }
 
 
-class PipelineBronzeFacturas:
+class BronzeTranfacPipeline:
     def __init__(
             self,
             database_config: Optional[DatabaseConfig] = None,
@@ -47,14 +47,15 @@ class PipelineBronzeFacturas:
         if self.pipeline_config.mode_pipeline == RunMode.INICIAL:
             return None
         with get_session("QUANTA") as session:
-            max_emission_date = DatabaseConfig.model_class.get_last_transaction_date(session)
+            max_emission_date = DatabaseConfig.model_class.get_last_transaction_date(session) #Revisar xq se tendria que emviar
+            # la fecha de Transaccion de Facturas y cargar primero trnafac y luego facturas para incremnetal
         return {"max_emission_date": max_emission_date}
 
     def _build_pipeline(self, spec: SourceSpec, sql_text: str, params: Optional[Dict[str, object]]) -> LoggingPipeline:
         steps = [
             ("Extract Data from Fenix Database",
              DatabaseExtractor(db_alias=spec.db_alias_load, query=sql_text, params=params)),
-            ("Load DatawareHouse Bronze Fracturas", DWBatchedLoader(
+            ("Load DatawareHouse Bronze Tranfac", DWBatchedLoader(
                 db_alias=self.database_config.db_alias_load,
                 model_class=self.database_config.model_class,
                 mode=self.database_config.mode,
