@@ -7,7 +7,7 @@ from models.base_model import BaseModel
 
 class BronzeVendedoresEntity(Base, BaseModel):
     __tablename__ = "fenix_vendedores"
-    __table_args__ = {"schema": "bronze"}
+    __table_args__ = {"schema": "analytics_bronze"}
 
     id_codven = Column(BigInteger, primary_key=True)
     creation_date = Column(

@@ -1,0 +1,70 @@
+version: 2
+
+sources:
+  - name: features
+    # database: tu_base_de_datos # Descomenta y llena esto si es necesario
+    schema: features
+    tables:
+      - name: sucursales
+        description: "Tabla fuente que contiene la información detallada de cada sucursal."
+
+        columns:
+          - name: id_sucursal
+            description: "Clave primaria. Identificador único de la sucursal."
+            tests:
+              - unique
+              - not_null
+
+          - name: nombre_sucursal
+            description: "Nombre comercial o identificador de la sucursal."
+
+          - name: ciudad
+            description: "Ciudad en la que se encuentra ubicada la sucursal."
+
+          - name: tipo
+            description: "Tipo o formato de la sucursal."
+
+          - name: nombre_sucursal_subca
+            description: "Subcategoría o nombre secundario asociado a la sucursal."
+
+          - name: tamano
+            description: "Clasificación general del tamaño de la sucursal."
+
+          - name: tamano_metas
+            description: "Clasificación del tamaño de la sucursal utilizada específicamente para la asignación de metas comerciales."
+
+      - name: puntos_emision
+        description: "Tabla fuente que registra los puntos de emisión de facturación asignados a cada sucursal."
+
+        columns:
+          - name: id_punto_emision
+            description: "Clave primaria. Identificador único del punto de emisión."
+            tests:
+              - unique
+              - not_null
+
+          - name: id_sucursal
+            description: "Clave foránea que relaciona el punto de emisión con su sucursal correspondiente."
+            tests:
+              - not_null
+              # Aquí cambia: validamos la relación directamente contra la otra tabla source
+              - relationships:
+                  to: source('nombre_de_tu_fuente', 'sucursales')
+                  field: id_sucursal
+
+          - name: fecha_apertura
+            description: |
+              Fecha en la que el punto de emisión inició operaciones. Se debe considerar que en la validacion
+              de fecha de emision con respecto a la fecha de apertura, se incluye el dia limite. Observe la siguiente formula:
+              
+              `pf.fecha_emision >= pe.fecha_apertura AND pf.fecha_emision < pe.fecha_cierre`
+
+          - name: fecha_cierre
+            description: |
+              Fecha en la que el punto de emisión fue dado de baja o cerrado.  Se debe considerar que en la validacion
+              de fecha de emision con respecto a la fecha de cierre, no se incluye el dia limite. Observe la siguiente formula:
+              
+              `pf.fecha_emision >= pe.fecha_apertura AND pf.fecha_emision < pe.fecha_cierre`
+
+          - name: serial_punto_emision
+            description: "Código serial asignado al punto de emisión."

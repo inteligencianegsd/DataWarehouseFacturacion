@@ -1,0 +1,27 @@
+{{config(
+    materialized='table',
+    alias='fact_facturacion',
+)}}
+
+SELECT
+    df_0.id_factura,
+    f_0.fecha_emision,
+    f_0.hora_emision,
+    dc_0.id_cliente,
+    dv_0.id_vendedor,
+    da_0.id_articulo,
+    f_0.id_sucursal,
+    dco_0.id_codigo,
+    t_0.cantidad_articulos,
+    t_0.valor_unitario,
+    t_0.porcentaje_descuento,
+    t_0.cantidad_articulos * t_0.valor_unitario * (100 - t_0.porcentaje_descuento) / 100 AS subtotal_articulo
+FROM {{ref('dbt_fenix_facturas')}} f_0
+LEFT JOIN {{ref('dbt_fenix_tranfac')}} t_0 ON f_0.codigo_factura = t_0.codigo_factura
+LEFT JOIN {{ref('dbt_dim_facturas')}} df_0 ON f_0.codigo_factura = df_0.codigo_factura
+LEFT JOIN {{ref('dbt_dim_clientes')}} dc_0 ON f_0.codigo_cliente = dc_0.codigo_cliente
+LEFT JOIN {{ref('dbt_dim_vendedores')}} dv_0 ON f_0.codigo_vendedor = dv_0.codigo_vendedor
+LEFT JOIN {{ref('dbt_dim_articulos')}} da_0 ON t_0.codigo_articulo = da_0.codigo_articulo
+LEFT JOIN {{ref('dbt_dim_codigos')}} dco_0 ON f_0.comentario_3 = dco_0.codigo
+
+

@@ -1,0 +1,258 @@
+version: 2
+
+
+models:
+  - name: dim_date
+    description: |
+      Dimensión de fechas utilizada para el análisis temporal de las tablas de hechos.
+      Cada registro representa un día calendario único y contiene diferentes atributos
+      que permiten analizar la información por año, mes, trimestre o día.
+
+    columns:
+      - name: date
+        description: "Fecha del calendario que identifica de forma única cada registro en la dimensión de fechas."
+
+      - name: year
+        description: "Año correspondiente a la fecha."
+
+      - name: month
+        description: "Número del mes dentro del año (1–12)."
+
+      - name: day
+        description: "Número del día dentro del mes."
+
+      - name: quarter
+        description: "Trimestre del año al que pertenece la fecha (1–4)."
+
+      - name: month_name
+        description: "Nombre del mes correspondiente a la fecha."
+
+      - name: day_name
+        description: "Nombre del día de la semana correspondiente a la fecha."
+
+      - name: is_weekend
+        description: "Indica si la fecha corresponde a fin de semana (TRUE para sábado o domingo, FALSE para días laborables)."
+
+  - name: dbt_dim_vendedores
+    description: |
+      Dimensión de vendedores construida a partir de la información del sistema Fenix.
+      Cada registro representa un vendedor único asociado a las transacciones de venta.
+      
+      La tabla utiliza una clave surrogate generada mediante una secuencia para
+      facilitar las relaciones con las tablas de hechos del Data Warehouse.
+
+    columns:
+      - name: id_vendedor
+        description: "Clave sustituta (surrogate key) de la dimensión de vendedores generada mediante una secuencia en el Data Warehouse."
+        tests:
+          - unique
+          - not_null
+
+      - name: codigo_vendedor
+        description: "Código único que identifica al vendedor en el sistema Fenix."
+        tests:
+          - unique
+          - not_null
+
+      - name: nombre_vendedor
+        description: "Nombre del vendedor registrado en el sistema Fenix."
+
+  - name: dbt_dim_articulos
+    description: |
+      Dimensión de artículos construida a partir de la información proveniente del
+      sistema Fenix. Cada registro representa un artículo único utilizado en las
+      transacciones de facturación.
+      
+      La tabla utiliza una clave surrogate generada mediante una secuencia para 
+      facilitar las relaciones con las tablas de hechos del Data Warehouse.
+
+    columns:
+      - name: id_articulo
+        description: "Clave sustituta (surrogate key) de la dimensión de artículos generada mediante una secuencia en el Data Warehouse."
+        tests:
+          - unique
+          - not_null
+
+      - name: codigo_articulo
+        description: "Código único que identifica al artículo en el sistema Fenix."
+        tests:
+          - unique
+          - not_null
+
+      - name: nombre_articulo
+        description: "Nombre o descripción del artículo registrado en el sistema Fenix."
+
+      - name: vigencia
+        description: "Periodo de vigencia asociado al artículo."
+
+      - name: familia
+        description: "Categoría o familia a la que pertenece el artículo."
+
+      - name: tipo_plan
+        description: "Tipo de plan asociado al artículo (por ejemplo: tipos de planes de facturacion)."
+
+  - name: dbt_dim_facturas
+    description: |
+      Dimensión de facturas generada a partir de la información del sistema Fenix.
+      Cada registro representa una factura única identificada por su código de factura.
+
+      Esta tabla también identifica el estado de la factura. Si existe una nota de crédito
+      asociada al mismo código de documento, la factura se marca como "ANULADO".
+      En caso contrario, se considera "FACTURADO".
+      
+      La tabla utiliza una clave surrogate generada mediante una secuencia para 
+      facilitar las relaciones con las tablas de hechos del Data Warehouse.
+
+    columns:
+      - name: id_factura
+        description: "Clave sustituta (surrogate key) de la dimensión de facturas generada mediante una secuencia en el Data Warehouse."
+        tests:
+          - unique
+          - not_null
+
+      - name: codigo_factura
+        description: "Identificador unico de la factura proveniente del sistema Fenix."
+        tests:
+          - unique
+          - not_null
+
+      - name: codigo_documento
+        description: "Código del documento asociado a la factura en el sistema Fenix. Se utiliza para relacionar facturas con notas de crédito."
+
+      - name: numero_factura
+        description: "Número visible de la factura utilizado para identificación operativa."
+
+      - name: comentario_1
+        description: "Campo de comentario adicional proveniente del sistema Fenix asociado a la factura."
+
+      - name: comentario_2
+        description: "Segundo campo de comentario registrado en la factura dentro del sistema Fenix."
+
+      - name: comentario_3
+        description: "Tercer campo de comentario registrado en la factura dentro del sistema Fenix."
+
+      - name: codigo_descuento
+        description: "Código de descuento aplicado a la factura extraida de los comentarios."
+
+      - name: estado_factura
+        description: |
+          Estado de la factura determinado a partir de la existencia de una nota de crédito.
+          - FACTURADO: no existe una nota de crédito asociada.
+          - ANULADO: existe una nota de crédito asociada al mismo código de documento.
+          Cabe recalcar que en caso de una nota credito, tanto la factura como la nota de credito que compartan
+          el mismo numero_documento seran marcados cmo ANULADO
+
+
+
+  - name: dbt_dim_clientes
+    description: |
+      Tabla de dimensión que contiene la información de clientes proveniente del
+      sistema Fenix. Cada registro representa un cliente único identificado por
+      su código. 
+      
+      La tabla utiliza una clave surrogate generada mediante una secuencia para 
+      facilitar las relaciones con las tablas de hechos del Data Warehouse.
+
+    columns:
+      - name: id_cliente
+        description: "Clave sustituta (surrogate key) de la dimensión de facturas generada mediante una secuencia en el Data Warehouse."
+        tests:
+          - unique
+          - not_null
+
+      - name: codigo_cliente
+        description: >
+          Código identificador del cliente en el sistema transaccional Fenix.
+        tests:
+          - unique
+          - not_null
+
+      - name: nombre_cliente
+        description: >
+          Nombre o razón social del cliente registrado en el sistema Fenix.
+
+      - name: cif
+        description: >
+          Número de identificación fiscal del cliente (CIF), utilizado para
+          emitir la factura.
+      
+
+
+
+  - name: dbt_fact_facturacion
+    description: |
+      Tabla de hechos con granularidad a nivel de artículo. Cada registro representa la venta
+      de un artículo dentro de una factura.
+
+      Los valores facturados se calculan utilizando el precio registrado para cada artículo
+      en la tabla tranfac. Debido a esto, los totales pueden diferir de los valores de
+      facturación almacenados en la tabla facturas del sistema Fenix.
+
+    columns:
+      - name: id_factura
+        description: >
+          Clave surrogate que identifica de forma única la factura en la
+          dimensión de facturas. Permite relacionar la tabla de hechos con
+          la dimensión de facturas.
+        tests:
+          - not_null
+
+      - name: fecha_emision
+        description: "Fecha en la que fue emitida la factura."
+
+      - name: hora_emision
+        description: "Hora en la que fue emitida la factura."
+
+      - name: id_cliente
+        description: >
+          Clave surrogate que identifica al cliente asociado a la factura.
+          Permite relacionar la tabla de hechos con la dimensión de clientes.
+        tests:
+          - relationships:
+              to: ref('dbt_dim_clientes')
+              field: id_cliente
+
+      - name: id_vendedor
+        description: >
+          Clave surrogate que identifica al vendedor responsable de la venta.
+          Permite relacionar la tabla de hechos con la dimensión de vendedores.
+        tests:
+          - relationships:
+              to: ref('dbt_dim_vendedores')
+              field: id_vendedor
+
+      - name: id_articulo
+        description: >
+          Clave surrogate que identifica el artículo vendido en la transacción.
+          Permite relacionar la tabla de hechos con la dimensión de artículos.
+        tests:
+          - relationships:
+              to: ref('dbt_dim_articulos')
+              field: id_articulo
+
+      - name: id_sucursal
+        description: >
+          Identificador de la sucursal donde se realizó la venta.
+        tests:
+          - relationships:
+              to: source("features", "sucursales")
+              field: id_sucursal
+
+      - name: cantidad_articulos
+        description: >
+          Cantidad de unidades del artículo incluidas en la línea de la factura.
+
+      - name: valor_unitario
+        description: >
+          Precio unitario del artículo antes de aplicar descuentos.
+
+      - name: porcentaje_descuento
+        description: >
+          Porcentaje de descuento aplicado al artículo en la línea de la factura.
+
+      - name: subtotal_articulo
+        description: |
+          Valor subtotal de la línea de factura después de aplicar el descuento.
+          Se calcula como:
+          
+          cantidad_articulos x valor_unitario x (100 - porcentaje_descuento) / 100

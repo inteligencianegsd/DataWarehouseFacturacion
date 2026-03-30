@@ -7,9 +7,10 @@ from models.base_model import BaseModel
 
 class BronzeClienteEntity(Base, BaseModel):
     __tablename__ = "fenix_clientes"
-    __table_args__ = {"schema": "bronze"}
+    __table_args__ = {"schema": "analytics_bronze"}
 
     id_codcli = Column(BigInteger, primary_key=True)
+
     creation_date = Column(
         DateTime(timezone=False),
         server_default=func.now(),
@@ -23,7 +24,7 @@ class BronzeClienteEntity(Base, BaseModel):
         nullable=False
     )
 
-    codcli = Column(String(15), unique=True)
+    codcli = Column(String(50), unique=True)
     nomcli = Column(String(100))
     cif = Column(String(13))
     fecha_act = Column(DateTime(timezone=False))

@@ -1,6 +1,9 @@
+from typing import List
+
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
 import pandas as pd
+from unidecode import unidecode
 
 
 class RenameColumnsTransform(BaseEstimator, TransformerMixin):
@@ -203,3 +206,22 @@ class CheckValueNotEqualFlag(BaseEstimator, TransformerMixin):
     def transform(self, X: DataFrame = None):
         X[self.flag_column] = X[self.column_name_to_check] != self.target_value
         return X
+
+
+class CleanSpecialCharacters(BaseEstimator, TransformerMixin):
+    def __init__(
+            self,
+            columns: List[str]
+    ):
+        self.columns = columns
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X:DataFrame = None):
+        cols_to_fix = X.columns.intersection(self.columns)
+        for column in cols_to_fix:
+            X[column] = X[column].apply(lambda x: unidecode(str(x)) if pd.notnull(x) else x)
+        return X
+
+

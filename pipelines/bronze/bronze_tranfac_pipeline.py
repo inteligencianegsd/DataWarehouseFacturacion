@@ -1,6 +1,7 @@
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Type
 
 from common.session_manager import get_session
+from config.app_config import AppConfig
 from config.logging_pipeline import LoggingPipeline
 from entities.bronze.broze_tranfac_entity import BronzeTranfacEntity
 from etl.extract.db_extractor import DatabaseExtractor
@@ -12,44 +13,50 @@ from utils.source_spec import SourceSpec
 
 
 class DatabaseConfig:
-    db_alias_load: str = "LOCAL"
-    model_class: BronzeTranfacEntity = BronzeTranfacEntity
-    mode: ModePersistence = ModePersistence.INSERT
-    conflict_cols: tuple[str] = None
-    batch_size: int = 3000
-    commit_per_batch: bool = True
+
+    def __init__(self, app_config):
+
+        self.db_alias_load: str = app_config.db_alias
+        self.model_class: Type[BronzeTranfacEntity] = BronzeTranfacEntity
+        self.mode: ModePersistence = ModePersistence.UPDATE
+        self.conflict_cols: tuple[str, ...] = ("id_tranfac", "unico")
+        self.update_cols: tuple[str, ...] = ('numfac', 'codart', 'cantidad_d', 'precio', 'desct')
+        self.batch_size: int = 6000
+        self.commit_per_batch: bool = True
 
 
 class PipelineConfig:
-    pipeline_name: str = "Bronze Tranfac Entity Pipeline"
-    mode_pipeline: RunMode = RunMode.INICIAL
+    def __init__(self, app_config):
+        self.pipeline_name: str = "Bronze Tranfac Entity Pipeline"
+        self.mode_pipeline: RunMode = app_config.run_mode
 
-    SOURCE_BY_MODE: Dict[RunMode, List[SourceSpec]] = {
-        RunMode.INICIAL: [
-            SourceSpec("fenix", "FENIX", "initialization", "tranfac.sql")
-        ],
-        RunMode.INCREMENTAL: [
-            SourceSpec("fenix", "FENIX", "incremental", "tranfac_incremental.sql")
-        ]
-    }
+        self.SOURCE_BY_MODE: Dict[RunMode, List[SourceSpec]] = {
+            RunMode.INICIAL: [
+                SourceSpec("fenix", "FENIX", "initialization", "tranfac.sql")
+            ],
+            RunMode.INCREMENTAL: [
+                SourceSpec("fenix", "FENIX", "incremental", "tranfac_incremental.sql")
+            ]
+        }
 
 
 class BronzeTranfacPipeline:
     def __init__(
             self,
+            app_config: AppConfig,
             database_config: Optional[DatabaseConfig] = None,
             pipeline_config: Optional[PipelineConfig] = None
     ) -> None:
-        self.database_config = database_config or DatabaseConfig()
-        self.pipeline_config = pipeline_config or PipelineConfig()
+        self.database_config = database_config or DatabaseConfig(app_config)
+        self.pipeline_config = pipeline_config or PipelineConfig(app_config)
 
     def _build_params_for_mode(self) -> Optional[dict[str, object]]:
         if self.pipeline_config.mode_pipeline == RunMode.INICIAL:
             return None
-        with get_session("QUANTA") as session:
-            max_emission_date = DatabaseConfig.model_class.get_last_transaction_date(session) #Revisar xq se tendria que emviar
+        with get_session(self.database_config.db_alias_load) as session:
+            max_incremental_id = self.database_config.model_class.get_last_transaction_id(session) #Revisar xq se tendria que emviar
             # la fecha de Transaccion de Facturas y cargar primero trnafac y luego facturas para incremnetal
-        return {"max_emission_date": max_emission_date}
+        return {"max_incremental_id": max_incremental_id}
 
     def _build_pipeline(self, spec: SourceSpec, sql_text: str, params: Optional[Dict[str, object]]) -> LoggingPipeline:
         steps = [
@@ -60,6 +67,7 @@ class BronzeTranfacPipeline:
                 model_class=self.database_config.model_class,
                 mode=self.database_config.mode,
                 conflict_cols=self.database_config.conflict_cols,
+                update_cols=self.database_config.update_cols,
                 batch_size=self.database_config.batch_size,
                 commit_per_batch=self.database_config.commit_per_batch,
             ))

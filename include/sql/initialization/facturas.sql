@@ -4,7 +4,7 @@ SELECT
 	f.numdoc,
 	f.cliente,
 	f.numser,
-	f.secuencia,
+	f.pedido,
 	f.comen1,
 	f.comen2,
 	f.comen3,
@@ -14,7 +14,6 @@ SELECT
 	f.total_iva ,
 	f.total,
 	f.codven,
-	f.fecha_hora
+	f.emision
 FROM security_data.facturas f
-ORDER BY f.emision DESC
-LIMIT 100
+ORDER BY f.emision ASC

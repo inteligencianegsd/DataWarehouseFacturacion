@@ -1,5 +1,6 @@
 from contextlib import contextmanager
-from common.db import SessionPortal, SessionFenix, SessionCamunda, SessionQuanta, SessionLatinum, SessionLocal
+from common.db import SessionPortal, SessionFenix, SessionCamunda, SessionQuanta, SessionLatinum, SessionLocal, \
+    SessionPortalGk
 
 
 # session_manager.py
@@ -15,6 +16,8 @@ def get_session(db_alias="default"):
         session = SessionQuanta()
     elif db_alias == 'LATINUM':
         session = SessionLatinum()
+    elif db_alias == 'PORTAL_GK':
+        session = SessionPortalGk()
     else:
         session = SessionLocal()
 

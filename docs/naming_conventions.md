@@ -32,7 +32,41 @@ This document outlines the naming conventions used for schemas, tables, views, c
 | Database table | snake_case | `customer_order` |
 | Database column | snake_case** | `customer_name` |
 | Constant | UPPER_CASE | `MAX_RETRIES` |
-** These column definitions will be maintained in the silver and gold layer tables; for the bronze layer tables, the original column names will be respected.
+** These column definitions will be maintained in the silver and gold layer tables; for the bronze layer tables, 
+the original column names will be respected.
+
+## **Files Naming Conventions From Entities**
+We will consider two types of files for entity naming conventions:
+
+* **Python-based Entity Files:** Files written in Python that represent an entity. An entity is defined as a class or 
+object in the code (Object-Oriented Programming) that directly maps to or represents a table in a relational database.
+* **DBT SQL Files:** SQL files within the DBT project responsible for transformation processes between the layers of 
+the Medallion architecture.
+
+
+### Python Entity Naming Conventions
+
+All entity class names must include the suffix `_entity`. The following structural rules apply based on the architecture layer:
+
+#### Bronze and Silver Layers: 
+- The file and class names must follow the structure: 
+
+- `[Layer Prefix]_<entity>_[Suffix]`
+
+  - `<entity>`: Exact table name from the source system.
+  - `[Layer Prefix]`: Exact Layer name for example `silver`, `broze`
+  - **Ejemplo:** `bronze_factuas_entity.py`, `silver_clientes_entity`
+
+#### Gold Layer: 
+- All names must use meaningful, business-aligned names for tables, starting with the category prefix.
+- **`<category>_<entity>`**  
+  - `<category>`: Describes the role of the table, such as `dim` (dimension) or `fact` (fact table).  
+  - `<entity>`: Descriptive name of the table, aligned with the business domain (e.g., `customers`, `products`, `sales`). This name must be in plural.
+  - Examples:
+    - `dim_customers` → Dimension table for customer data.  
+    - `fact_sales` → Fact table containing sales transactions.  
+  
+
 
 ## **Table Naming Conventions**
 
@@ -54,30 +88,53 @@ This document outlines the naming conventions used for schemas, tables, views, c
 - All names must use meaningful, business-aligned names for tables, starting with the category prefix.
 - **`<category>_<entity>`**  
   - `<category>`: Describes the role of the table, such as `dim` (dimension) or `fact` (fact table).  
-  - `<entity>`: Descriptive name of the table, aligned with the business domain (e.g., `customers`, `products`, `sales`).  
+  - `<entity>`: Descriptive name of the table, aligned with the business domain (e.g., `customers`, `products`, `sales`). This name must be in plural.
   - Examples:
     - `dim_customers` → Dimension table for customer data.  
     - `fact_sales` → Fact table containing sales transactions.  
 
 #### **Glossary of Category Patterns**
 
-| Pattern     | Meaning                           | Example(s)                              |
-|-------------|-----------------------------------|-----------------------------------------|
-| `dim_`      | Dimension table                  | `dim_customer`, `dim_product`           |
-| `fact_`     | Fact table                       | `fact_sales`                            |
-| `report_`   | Report table                     | `report_customers`, `report_sales_monthly`   |
+| Pattern     | Meaning                           | Example(s)                                 |
+|-------------|-----------------------------------|--------------------------------------------|
+| `dim_`      | Dimension table                  | `dim_clientes`, `dim_articulos`            |
+| `fact_`     | Fact table                       | `fact_sales`                               |
+| `report_`   | Report table                     | `report_customers`, `report_sales_monthly` |
 
 ## **Column Naming Conventions**
 
+### **Auxiliary Columns**
+Columns created **only during the transformation process in dbt** to support intermediate calculations, parsing, validations, or business rule implementations.
+
+These columns **must not exist in the final model** and are intended solely for use within **CTEs or intermediate transformation steps**. 
+
+They are considered **technical columns used during data processing** and **do not represent business attributes**.
+
+- **`aux_<description>`**
+  - `aux_`: A prefix indicating that this column is an **auxiliary transformation column**.
+  - `<description>`: A short, descriptive name explaining the transformation purpose of the column.
+
+- **Rules:**
+  - Must be used **only within intermediate transformations (CTEs, staging logic, or transformation steps)**.
+  - Must **not appear in the final SELECT** of the model.
+  - Should have **a single clear transformation purpose** (parsing, classification, flags, or temporary calculations).
+  - Must be **removed before the final dataset is materialized**.
+
+- **Examples:**
+  - `aux_vigencia_plan` → Temporary column used to extract the validity period from a product description.
+  - `aux_tipo_plan` → Auxiliary column used to classify plan types based on business rules.
+  - `aux_flag_facturacion` → Temporary flag used during transformation to identify billing-related records.
+
 ### **Surrogate Keys**  
-- All primary keys in dimension tables must use the suffix `_key`.
-- **`<table_name>_key`**  
-  - `<table_name>`: Refers to the name of the table or entity the key belongs to.  
-  - `_key`: A suffix indicating that this column is a surrogate key.  
-  - Example: `customer_key` → Surrogate key in the `dim_customers` table.
+All primary keys in dimension tables must use the prefix `id_`.
+- **`id_<entity>`**
+  - `id_`: A prefix indicating that this column is a surrogate key.  
+  - `<entity>`: Descriptive name of the table, aligned with the business domain (e.g., `customers`, `products`, `sales`). This name must be in plural.  
+  
+  - Example: `id_clientes` → Surrogate key in the `dim_clientes` table.
   
 ### **Technical Columns**
-- All technical columns must start with the prefix `dwh_`, followed by a descriptive name indicating the column's purpose.
+All technical columns must start with the prefix `dwh_`, followed by a descriptive name indicating the column's purpose.
 - **`dwh_<column_name>`**  
   - `dwh`: Prefix exclusively for system-generated metadata.  
   - `<column_name>`: Descriptive name indicating the column's purpose.  

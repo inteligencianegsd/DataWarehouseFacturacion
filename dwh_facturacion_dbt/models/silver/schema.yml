@@ -1,0 +1,205 @@
+version: 2
+
+models:
+  - name: dbt_fenix_articulos
+    description: "Modelo de la capa Silver con los códigos de Artículos provenientes de Fenix. Realiza limpieza de texto, extracción de datos mediante expresiones regulares y categorización de planes y artículos."
+    columns:
+      - name: creation_date
+        description: "Fecha de creación del registro. Proviene directamente de la capa bronze sin transformaciones."
+
+      - name: update_date
+        description: "Fecha de la última actualización del registro. Proviene directamente de la capa bronze sin transformaciones."
+
+      - name: codigo
+        description: |
+          Código único del artículo. 
+          
+          **Transformaciones:** 
+          
+          - Se renombra desde el campo origen `codart`.
+          - Se eliminan los espacios en blanco al inicio y al final (`TRIM`).
+        tests:
+          - unique
+          - not_null
+
+      - name: nombre
+        description: |
+          Nombre principal del artículo.
+          
+          **Transformaciones:**
+          - Se renombra desde el campo origen `nomart`.
+          - Se eliminan espacios en blanco y se convierte a mayúsculas.
+          - Se estandariza la ortografía reemplazando la palabra 'ANIO' por 'ANO'.
+
+      - name: familia
+        description: |
+          Nombre secundario o categoría del artículo.
+          
+          **Transformaciones:**
+          - Se renombra desde `nomart2`, limpiando espacios, convirtiendo a mayúsculas y transformando textos vacíos (`''`) en valores `NULL`.
+          - **Reglas de reclasificación:** Se sobreescribe su valor dependiendo del contenido de `nom_articulo`:
+            1. 'UPGRADE' si el nombre contiene dicha palabra.
+            2. 'PUNTO DE EMISION' si el nombre contiene dicha palabra.
+            3. 'FIRMA ELECTRONICA' si el nombre lo indica y tiene una `vigencia` válida.
+            4. 'SISTEMA DE FACTURACION' si el nombre contiene 'FACT' y tiene un `plan` asignado.
+            5. Si no cumple ninguna, mantiene su valor original limpio.
+
+      - name: vigencia
+        description: |
+          Duración o periodo de vigencia del artículo.
+          **Transformaciones:**
+          - Campo extraído dinámicamente desde `nom_articulo` usando expresiones regulares. 
+          - Extrae el número seguido de los términos 'MES', 'MESES', 'ANO' o 'ANOS' (ej. '12 MESES').
+
+      - name: tipo_plan
+        description: |
+          Esta Columna esta creada con el fin identificar el tipo de PLAN de la familia del articul
+          
+          # **Transformaciones:**
+          
+          Se extrae inicialmente de `nom_articulo` vía Regex buscando el formato 'X TRANSACC' o 'PLAN ILIMITADO'.
+          
+          ## **Reglas de negocio (Mapeo):**
+            - '25 TRANSACC' -> 'PLAN MINI'
+            - '75 TRANSACC' -> 'PLAN BASICO'
+            - '150 TRANSACC' -> 'PLAN ESENCIAL'
+            - '350 TRANSACC' -> 'PLAN ESTANDAR'
+            - 'PLAN ILIMITADO' -> 'PLAN PREMIUM'
+            - Si contiene la palabra 'TRANSACC' pero no coincide con los anteriores, se le concatena el prefijo 'PLAN '.
+            - Si no encuentra coincidencia en las reglas previas, se toma el valor que tenia previamente plan
+
+  - name: dbt_fenix_facturas
+    description: "Modelo de la capa silver con las facturas transformadas. Estandariza textos, extrae códigos de descuento y formatea fechas."
+
+    columns:
+      - name: codigo_factura
+        description: "Corresponde al campo numfac en la base de datos del sistema Fenix. Indica si el registro corresponde a una factura o Nota de Credito"
+        tests:
+          - unique
+          - not_null
+
+      - name: codigo_documento
+        description: "Número de documento asociado a la transacción, En caso de notas de credito este campo tiene el mismo valor tanto la factura como la nota de credito"
+
+      - name: codigo_cliente
+        description: "Identificador del cliente al cual se le emite la factura."
+
+      - name: numero_factura
+        description: "Número de factura completo (concatenación de serie y secuencia)."
+        tests:
+          - unique
+          - not_null
+
+      - name: comentario_1
+        description: "Comentario adicional 1 (en mayúsculas)."
+
+      - name: comentario_2
+        description: "Comentario adicional 2 (en mayúsculas). Contiene el código de descuento."
+
+      - name: comentario_3
+        description: "Comentario adicional 3 (en mayúsculas)."
+
+      - name: codigo_descuento
+        description: "Código de descuento extraído dinámicamente de comen2."
+
+      - name: subtotal
+        description: "Monto subtotal de la factura."
+
+      - name: valor_descuento
+        description: "Monto de descuento aplicado a la factura."
+
+      - name: iva
+        description: "Indicador de IVA aplicado."
+
+      - name: total_iva
+        description: "IVA aplicado a la factura."
+
+      - name: codigo_vendedor
+        description: "Identificar unico de la persona que factura la venta."
+
+      - name: fecha_emision
+        description: "Fecha de emisión de la factura (formato DATE)."
+
+      - name: hora_emision
+        description: "Hora de emisión de la factura (formato TIME)."
+
+      - name: id_sucursal
+        description: id Sucursal
+
+  - name: dbt_fenix_clientes
+    description: "Modelo de la capa silver con los clientes transformadas. Estandariza textos,"
+
+    columns:
+      - name: creation_date
+        description: "Fecha de creacion del registro en el DW"
+
+      - name: update_date
+        description: "Fecha de actualizacion del registro en el DW"
+
+      - name: codigo
+        description: "Codigo Identificador del cliente en la Base datos Fenix"
+        tests:
+          - unique
+          - not_null
+
+      - name: nombre
+        description: "Nombre del cliente"
+
+      - name: cif
+        description: "Documento al cual se emitio la factura ya sea Cedula, Ruc, etc"
+
+  - name: dbt_fenix_tranfac
+    description: "Modelo de la capa Silver que contiene la tabla de transacciones de facturación (tranfac) proveniente del sistema Fenix. En este modelo se aplican únicamente transformaciones de limpieza y estandarización de datos."
+
+    columns:
+      - name: creation_date
+        description: "Fecha de creacion del registro en el DW"
+
+      - name: update_date
+        description: "Fecha de actualizacion del registro en el DW"
+
+      - name: unico
+        description: "Identificador único del registro proveniente de la tabla tranfac del sistema Fenix."
+        tests:
+          - unique
+          - not_null
+
+      - name: codigo_factura
+        description: "Corresponde al campo numfac en la base de datos del sistema Fenix. Indica si el registro corresponde a una factura o Nota de Credito"
+
+      - name: codigo_articulo
+        description: "Código del artículo vendido. Corresponde al identificador del producto en el sistema Fenix."
+
+      - name: cantidad_articulos
+        description: "Cantidad de unidades del artículo vendidas en esta línea de factura."
+
+      - name: valor_unitario
+        description: "Precio unitario del artículo antes de aplicar cualquier descuento."
+
+      - name: porcentaje_descuento
+        description: "Porcentaje de descuento aplicado sobre el precio unitario del artículo para calcular el valor final pagado."
+
+
+  - name: dbt_fenix_vendedores
+    description: "Modelo de la capa Silver que contiene la tabla de de vendedores "
+    columns:
+      - name: creation_date
+        description: "Fecha de creacion del registro en el DW"
+
+      - name: update_date
+        description: "Fecha de actualizacion del registro en el DW"
+
+      - name: codigo
+        description: "Codigo Identificador del cliente en la Base datos Fenix"
+        tests:
+          - unique
+          - not_null
+
+      - name: nombre
+        description: "Nombre del vendedor"
+
+      - name: fecha_actualizacion
+        description: "Fecha de actualizacion de los registros de vendedores"
+
+
+

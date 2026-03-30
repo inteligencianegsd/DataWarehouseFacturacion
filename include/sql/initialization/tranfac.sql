@@ -7,5 +7,4 @@ SELECT
     precio,
     desct
 FROM security_data.tranfac
-ORDER BY id_tranfac DESC
-LIMIT 100
+ORDER BY id_tranfac ASC

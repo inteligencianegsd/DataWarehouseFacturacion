@@ -1,0 +1,230 @@
+version: 2
+
+sources:
+  - name: fenix_bronze
+    schema: analytics_bronze
+    description: >
+      Capa Bronze (raw data) que contiene las entidades principales extraídas 
+      del sistema origen Fenix. Los datos se mantienen en su estado original 
+      con la adición de campos de metadatos para auditoría.
+
+    tables:
+      # ==========================================
+      # TABLA: VENDEDORES
+      # ==========================================
+      - name: fenix_vendedores
+        description: >
+          Catálogo de vendedores registrados en el sistema Fenix. La carga incremental funciona con la columna fecha_act.
+        columns:
+          - name: id_codven
+            description: "Llave primaria subrogada autogenerada para la tabla en la base de datos."
+            tests:
+              - unique
+              - not_null
+          - name: creation_date
+            description: "Metadato: Fecha y hora exacta en la que el registro fue insertado en la capa Bronze."
+          - name: update_date
+            description: "Metadato: Fecha y hora exacta de la última actualización del registro en la capa Bronze."
+          - name: codven
+            description: "Código identificador único del vendedor proveniente del sistema origen."
+            tests:
+              - unique
+          - name: nomven
+            description: "Nombre completo del vendedor."
+          - name: fecha_act
+            description: "Fecha de actualización o registro original del vendedor en el sistema Fenix."
+
+      # ==========================================
+      # TABLA: CLIENTES
+      # ==========================================
+      - name: fenix_clientes
+        description: > 
+          Catálogo de clientes registrados en el sistema Fenix. La carga incremental funciona con la columna fecha_act.
+        columns:
+          - name: id_codcli
+            description: "Llave primaria subrogada autogenerada para la tabla en la base de datos."
+            tests:
+              - unique
+              - not_null
+          - name: creation_date
+            description: "Metadato: Fecha y hora exacta en la que el registro fue insertado en la capa Bronze."
+          - name: update_date
+            description: "Metadato: Fecha y hora exacta de la última actualización del registro."
+          - name: codcli
+            description: "Código identificador único del cliente proveniente del sistema origen."
+            tests:
+              - unique
+          - name: nomcli
+            description: "Nombre completo o razón social del cliente."
+          - name: cif
+            description: "Código de Identificación Fiscal, RUC o documento de identidad del cliente."
+          - name: fecha_act
+            description: "Fecha de actualización o registro original del cliente en el sistema Fenix."
+
+      # ==========================================
+      # TABLA: FACTURAS (CABECERA)
+      # ==========================================
+      - name: fenix_facturas
+        description: "Cabecera de las facturas emitidas. Contiene los totales y datos generales de la venta."
+        columns:
+          - name: id_numfac
+            description: "Llave primaria subrogada autogenerada para la tabla de facturas."
+            tests:
+              - unique
+              - not_null
+          - name: creation_date
+            description: "Metadato: Fecha y hora de inserción en la capa Bronze."
+          - name: numfac
+            description: "Número de la factura. Actúa como identificador lógico del documento."
+            tests:
+              - unique
+          - name: numdoc
+            description: "Número de documento asociado (puede ser un número fiscal o interno)."
+          - name: cliente
+            description: "Código del cliente al que se emite la factura (Clave foránea hacia fenix_clientes.codcli)."
+          - name: numser
+            description: "Número de serie de la facturación."
+          - name: secuencia
+            description: "Secuencia correlativa del documento."
+          - name: comen1
+            description: "Línea de comentario o campo de observación 1 del documento."
+          - name: comen2
+            description: "Línea de comentario o campo de observación 2 del documento."
+          - name: comen3
+            description: "Línea de comentario o campo de observación 3 del documento."
+          - name: subtotal
+            description: "Monto subtotal de la factura antes de impuestos y descuentos."
+          - name: desc0
+            description: "Monto del descuento global aplicado a la factura."
+          - name: iva
+            description: "Porcentaje o indicador de Impuesto al Valor Agregado aplicado."
+          - name: total_iva
+            description: "Monto total calculado correspondiente al IVA."
+          - name: total
+            description: "Monto total final de la factura (Subtotal - Descuentos + Impuestos)."
+          - name: codven
+            description: "Código del vendedor que realizó la venta (Clave foránea hacia fenix_vendedores.codven)."
+          - name: fecha_hora
+            description: "Fecha y hora de emisión original de la factura en el sistema."
+
+      # ==========================================
+      # TABLA: TRANFAC (DETALLE DE FACTURAS)
+      # ==========================================
+      - name: fenix_tranfac
+        description: "Detalle transaccional a nivel de línea para cada factura (ítems facturados)."
+        columns:
+          - name: id_tranfac
+            description: "Llave primaria subrogada autogenerada para el detalle de factura."
+            tests:
+              - unique
+              - not_null
+          - name: creation_date
+            description: "Metadato: Fecha y hora de inserción en la capa Bronze."
+          - name: update_date
+            description: "Metadato: Fecha y hora de la última actualización del registro."
+          - name: unico
+            description: "Identificador único de la línea de transacción en el sistema origen."
+          - name: numfac
+            description: "Número de factura a la que pertenece esta línea (Clave foránea hacia fenix_facturas.numfac)."
+          - name: codart
+            description: "Código del artículo o producto facturado (Clave foránea hacia fenix_articulos.codart)."
+          - name: cantidad_d
+            description: "Cantidad del artículo facturado en esta línea."
+          - name: precio
+            description: "Precio unitario del artículo."
+          - name: desct
+            description: "Descuento específico aplicado a esta línea de transacción."
+
+      # ==========================================
+      # TABLA: ARTÍCULOS
+      # ==========================================
+      - name: fenix_articulos
+        description: >
+          Catálogo maestro de artículos o productos disponibles en el sistema. De momento esta tabla no cuenta
+          con una actualizacion incremental sino que al correr el Script se procedera a hacer un update en general de 
+          toda la tabla, lo cual produce que se borren todos los cambios realizados directamente sobre la tabla
+        columns:
+          - name: id_codart
+            description: "Llave primaria subrogada autogenerada para la tabla de artículos."
+            tests:
+              - unique
+              - not_null
+          - name: creation_date
+            description: "Metadato: Fecha y hora de inserción en la capa Bronze."
+          - name: update_date
+            description: "Metadato: Fecha y hora de la última actualización del registro."
+          - name: codart
+            description: "Código alfanumérico único que identifica al artículo."
+            tests:
+              - unique
+          - name: nomart
+            description: "Nombre principal o descripción del artículo."
+          - name: nomart2
+            description: "Nombre secundario, descripción corta o información adicional del artículo."
+
+      # ==========================================
+      # TABLA: CODIGOS
+      # ==========================================
+      - name: fenix_codigos
+        description: >
+          Catalogo de codigos de los distintos productos facturados por Fenix. Estos codigos generalmente se encuentran
+          dentro del `COMEN3` en los registros de la tabla `facturas` del sistema fenix. Estos codigos se ingresan de
+          manera automatica al realizar las ventas
+          
+          En casos de factuas manual, estos codigos no se agregan de maner aautomatica, por lo cual en estos casos no 
+          se puede identificar la informacion correspondiente del producto mediante estos codigos.
+
+        columns:
+          - name: id_codigo
+            description: Identificador unico del registro del codigo.
+
+          - name: creation_date
+            description: Fecha y hora en la que se inserto el registro en la tabla.
+
+          - name: update_date
+            description: Fecha y hora de la ultima actualizacion del registro.
+
+          - name: codigo
+            description: Codigo unico del producto, equivalente al campo `COMEN3` en la tabla de facturas del sistema Fenix.
+
+          - name: codigo_nombre
+            description: Nombre o descripcion del producto asociado al codigo.
+
+          - name: familia_producto
+            description: Agrupacion o familia a la que pertenece el producto.
+
+          - name: atencion
+            description: Tipo de atencion o canal asociado al producto.
+
+          - name: venta_dirigida
+            description: Segmento o perfil de cliente al que esta dirigida la venta del producto.
+
+          - name: concepto_1
+            description: Primer concepto o clasificacion adicional del producto.
+
+          - name: concepto_2
+            description: Segundo concepto o clasificacion adicional del producto.
+
+          - name: plan
+            description: Plan comercial al que pertenece el producto.
+
+          - name: vigencia
+            description: Periodo de vigencia o validez del producto.
+
+  - name: camunda_bronze
+    schema: analytics_bronze
+    description: >
+      Capa Bronze (raw data) que contiene las entidades principales extraídas 
+      del sistema origen CAMUNDA. EN este apartado los datos no se manejan en su totalidad como datos brutos,
+      esto por la gran verbosidad que hubiera requerido definir 4 tablas para obtener una simple tabla de 3 columnas
+
+    tables:
+
+      # ==========================================
+      # TABLA: GRUPO VENDEDORES Y VALIDACION VENTA NUEVA INCREMENTAL
+      # ==========================================
+
+      - name: camunda_operatividad
+        description: >
+          Camunda Opeartividad Documentacion aun no inicializada
+

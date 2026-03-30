@@ -5,5 +5,4 @@ SELECT
     cif,
     fecha_act
 FROM security_data.clientes
-ORDER BY fecha_act DESC
-LIMIT 100
+ORDER BY fecha_act ASC

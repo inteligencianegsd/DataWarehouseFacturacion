@@ -4,5 +4,4 @@ SELECT
     nomven,
     fecha_act
 FROM security_data.vendedores
-ORDER BY fecha_act
-LIMIT 100
+ORDER BY fecha_act ASC

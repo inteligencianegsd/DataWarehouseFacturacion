@@ -7,7 +7,7 @@ from models.base_model import BaseModel
 
 class BronzeFacturaEntity(Base, BaseModel):
     __tablename__ = "fenix_facturas"
-    __table_args__ = {"schema": "bronze"}
+    __table_args__ = {"schema": "analytics_bronze"}
 
     id_numfac = Column(BigInteger, primary_key=True)
     creation_date = Column(
@@ -15,11 +15,11 @@ class BronzeFacturaEntity(Base, BaseModel):
         server_default=func.now(),
         nullable=False,
     )
-    numfac = Column(String(10))
+    numfac = Column(String(10), unique=True)
     numdoc = Column(String(10))
-    cliente = Column(String(15))
+    cliente = Column(String(50))
     numser = Column(String(6))
-    secuencia = Column(String(10))
+    pedido = Column(String(10))
     comen1 = Column(String(200))
     comen2 = Column(String(100))
     comen3 = Column(String(70))
@@ -29,12 +29,12 @@ class BronzeFacturaEntity(Base, BaseModel):
     total_iva = Column(Numeric)
     total = Column(Numeric)
     codven = Column(String(10))
-    fecha_hora = Column(DateTime(timezone=False))
+    emision = Column(DateTime(timezone=False))
 
     @classmethod
     def get_last_transaction_date(cls, session: Session, where_func=None):
         query = session.query(
-            func.max(cls.fecha_hora)
+            func.max(cls.emision)
         )
         if where_func:
             query = where_func(query)

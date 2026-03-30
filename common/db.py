@@ -12,6 +12,7 @@ DB_CONFIG_FENIX = get_db_config("FENIX")
 DB_CONFIG_CAMUNDA = get_db_config("CAMUNDA")
 DB_CONFIG_QUANTA = get_db_config("QUANTA")
 DB_CONFIG_LATINUM = get_db_config("LATINUM")
+DB_CONFIG_PORTAL_GK = get_db_config("PORTAL_GK")
 
 
 # Engine y session para la base principal
@@ -22,6 +23,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Engine y session para la base de datos del portal
 engine_portal = create_engine(build_connection_url(DB_CONFIG_PORTAL), echo=False, future=True, hide_parameters=True)
 SessionPortal = sessionmaker(autocommit=False, autoflush=False, bind=engine_portal)
+
+engine_portal_gk = create_engine(build_connection_url(DB_CONFIG_PORTAL_GK), echo=False, future=True, hide_parameters=True)
+SessionPortalGk = sessionmaker(autocommit=False, autoflush=False, bind=engine_portal_gk)
 
 # Engine y session para la base de datos del Fenix
 engine_fenix = create_engine(build_connection_url(DB_CONFIG_FENIX), echo=False, hide_parameters=True)

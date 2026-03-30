@@ -7,7 +7,7 @@ def setup_logger():
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[
             logging.StreamHandler(),
-            #logging.FileHandler("errores_sqlalchemy.log", encoding="utf-8"),  # <- descomentar para guardar los Loggs
+            logging.FileHandler("errores_sqlalchemy.log", encoding="utf-8"),  # <- descomentar para guardar los Loggs
         ],
         force=True,  # MUY IMPORTANTE: resetea config previa
     )
