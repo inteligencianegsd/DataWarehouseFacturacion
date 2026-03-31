@@ -60,10 +60,52 @@ enriched_facturas AS (
         t_0.comentario_3,
         t_0.codigo_descuento,
         CASE WHEN nc_0.codigo_documento IS NOT NULL THEN 'ANULADO' ELSE 'FACTURADO' END AS estado_factura,
-        co_0.tipo_emision as tipo_venta
+        co_0.tipo_emision as tipo_venta,
+        CASE
+            WHEN dco_0.codigo IS NOT NULL THEN dco_0.familia_producto
+            WHEN t_0.codigo_descuento LIKE '%ALIANZA%' THEN 'FIRMAS ELECTRONICAS'
+            ELSE 'MANUAL'
+        END AS familia_producto,
+
+
+        CASE
+            WHEN dco_0.codigo IS NOT NULL THEN dco_0.atencion
+            WHEN t_0.codigo_descuento LIKE '%ALIANZA%' THEN 'CONVENIOS'
+            ELSE 'MANUAL'
+        END AS atencion,
+
+        CASE
+            WHEN dco_0.codigo IS NOT NULL THEN dco_0.venta_dirigida
+            WHEN t_0.codigo_descuento LIKE '%ALIANZA%' THEN 'CONVENIOS'
+            ELSE NULL
+        END AS venta_dirigida,
+
+        CASE
+            WHEN dco_0.codigo IS NOT NULL THEN dco_0.concepto_1
+            WHEN t_0.codigo_descuento LIKE '%ALIANZA%' THEN 'CONVENIOS'
+            ELSE 'MANUAL'
+        END AS concepto_1,
+
+         CASE
+            WHEN dco_0.codigo IS NOT NULL THEN dco_0.plan
+            WHEN t_0.codigo_descuento LIKE '%ALIANZA%' THEN 'MANUAL'
+            ELSE 'N/A'
+        END AS plan,
+
+         CASE
+            WHEN dco_0.codigo IS NOT NULL THEN dco_0.vigencia
+            WHEN t_0.codigo_descuento LIKE '%ALIANZA%' THEN NULL
+            ELSE 'N/A'
+        END AS vigencia
+
+
+
     FROM stg_facturas t_0
     LEFT JOIN notas_credito nc_0 ON t_0.codigo_documento = nc_0.codigo_documento
     LEFT JOIN camunda_dedup co_0 ON t_0.numero_factura = co_0.numero_factura
+    LEFT JOIN {{ref('dbt_fenix_codigos')}} dco_0 ON t_0.comentario_3 = dco_0.codigo
+    LEFT JOIN {{ref('dbt_dim_articulos')}} dar_default_convenios ON dar_default_convenios.codigo_articulo = 'CONVE.FACT.MANUAL'
+    LEFT JOIN {{ref('dbt_dim_articulos')}} dar_default ON dar_default.codigo_articulo = 'MANUAL.FACT.MANUAL'
 )
 
 SELECT
@@ -76,5 +118,11 @@ SELECT
     comentario_3,
     codigo_descuento,
     estado_factura,
-    tipo_venta
+    tipo_venta,
+    familia_producto,
+    atencion,
+    venta_dirigida,
+    concepto_1,
+    plan,
+    vigencia
 FROM enriched_facturas

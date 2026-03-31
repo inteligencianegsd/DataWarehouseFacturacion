@@ -52,7 +52,7 @@ if __name__ == "__main__":
                 # BronzeCodigosEntity,
                 # BronzeArticulosEntity,
                 # BronzeFacturaEntity,
-                BronzeTranfacEntity,
+                # BronzeTranfacEntity,
                 # BronzeClienteEntity,
                 # BronzeVendedoresEntity
             ])
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # BronzeFacturasPipeline(app_config).run()
     BronzeTranfacPipeline(app_config).run()
     # BronzeClientesPipeline(app_config).run()
-    # BronzeVendedoresPipeline(app_config).run()
+    BronzeVendedoresPipeline(app_config).run()
 
     # Para un  proceso mas optimo se debe rdefinir en esta script
     # db_alias_load: str = "LOCAL"
