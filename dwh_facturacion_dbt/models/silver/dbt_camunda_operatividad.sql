@@ -24,31 +24,76 @@ WITH cleaned_articulos AS (
             WHEN TRIM(UPPER(producto)) IN ('EMISION', 'RENOVACION')                THEN 'FIRMA'
             ELSE TRIM(UPPER(producto))
         END as producto,
-        TRIM(UPPER(grupo_vendedor)) AS grupo_vendedor
+        TRIM(UPPER(grupo_vendedor)) AS grupo_vendedor,
+        estado,
+        fecha_factura
     FROM {{ source("camunda_bronze", "camunda_operatividad") }}
+    -- Ya no filtramos por estado, traemos todo
+),
+
+con_fecha_primer_aprobado AS (
+    SELECT
+        *,
+        -- Fecha del primer registro APROBADO por grupo según producto
+        CASE
+            WHEN producto = 'FIRMA' THEN
+                MIN(CASE WHEN estado = 'APROBADO' THEN fecha_aprobacion END)
+                    OVER (PARTITION BY cedula)
+            WHEN producto IN ('SF SIN FIRMA', 'SF CON FIRMA') THEN
+                MIN(CASE WHEN estado = 'APROBADO' THEN fecha_aprobacion END)
+                    OVER (PARTITION BY ruc_aux)
+        END as fecha_primer_aprobado
+    FROM cleaned_articulos
 ),
 
 enriched AS (
     SELECT
         *,
         CASE
-            -- FIRMA: agrupar por cedula, ruc_aux, tipo_firma
-            WHEN producto = 'FIRMA' AND fecha_aprobacion = MIN(fecha_aprobacion) OVER (
-                PARTITION BY cedula
-                ORDER BY fecha_aprobacion
-                ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-            ) THEN 'NUEVO'
+            -- Registros APROVADOS: el más antiguo es NUEVO
+            WHEN estado = 'APROBADO'
+                 AND fecha_aprobacion = fecha_primer_aprobado
+                THEN 'NUEVO'
 
-            -- SF CON FIRMA y SF SIN FIRMA: agrupar solo por ruc_aux
-            WHEN producto IN ('SF CON FIRMA', 'SF SIN FIRMA') AND fecha_aprobacion = MIN(fecha_aprobacion) OVER (
-                PARTITION BY ruc_aux
-                ORDER BY fecha_aprobacion
-                ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-            ) THEN 'NUEVO'
+            -- Registros NO aprobados: si su fecha_factura es anterior
+            -- a la primera aprobación del grupo, es NUEVO
+            WHEN estado != 'APROBADO'
+                 AND fecha_factura < fecha_primer_aprobado
+                THEN 'NUEVO'
 
             ELSE 'RENOVACION'
-        END as tipo_emision
-    FROM cleaned_articulos
+        END as tipo_venta
+    FROM con_fecha_primer_aprobado
+),
+
+
+filter_register AS (
+    SELECT *,
+        ROW_NUMBER() OVER (
+            PARTITION BY serial_firma
+            ORDER BY
+                CASE WHEN estado = 'APROBADO' THEN 1 ELSE 2 END,
+                fecha_aprobacion DESC
+        ) as rn
+    FROM enriched
 )
 
-SELECT * FROM enriched
+SELECT
+    cedula,
+    fecha_aprobacion,
+    numero_factura,
+    ruc,
+    tipo_firma,
+    serial_firma,
+    fecha_inicio_tramite,
+    ruc_aux,
+    medio,
+    sf_control,
+    producto,
+    grupo_vendedor,
+    estado,
+    fecha_factura,
+    fecha_primer_aprobado,
+    tipo_venta
+FROM filter_register
+WHERE rn = 1

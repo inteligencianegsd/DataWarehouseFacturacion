@@ -1,6 +1,6 @@
 SELECT
-    id_codcli,
-    codcli,
+    -- id_codcli,
+    TRIM(codcli) as codcli,
     nomcli,
     cif,
     fecha_act

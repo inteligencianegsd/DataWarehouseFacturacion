@@ -10,7 +10,7 @@ with stg_facturas AS (
         ON df_0.id_factura = f_0.id_factura
     JOIN {{ ref('dbt_dim_codigos') }} dc_0
         ON f_0.id_codigo = dc_0.id_codigo
-    WHERE dc_0.atencion = 'CONVENIOS' AND df_0.estado_factura = 'FACTURADO'
+    WHERE dc_0.atencion = 'CONVENIOS'
 )
 
 SELECT *

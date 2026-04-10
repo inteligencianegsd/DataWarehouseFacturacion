@@ -4,7 +4,7 @@
          CASE 
 			    WHEN fs.fecha_aprobacion IS NOT NULL THEN fs.fecha_aprobacion::TIMESTAMP 
 			    ELSE t.fecha_fin_tramite
-	      END AS fecha_aprobacion,
+	     END AS fecha_aprobacion,
          f.factura_externa AS factura,
          t.fecha_inicio_tramite,
         case WHEN d.tipo_persona=521 THEN d.numero_ruc ELSE d.ruc_empresa_representante_legal END AS "ruc",
@@ -52,6 +52,7 @@
         AND t.id_tarea IN (620, 621)
         AND (fs.estado_registro = TRUE OR fs.estado_registro IS NULL)
         AND f.estado_registro = TRUE
-   ORDER BY c_4.nombre
+        AND fecha_aprobacion > :max_incremental_date
+   ORDER BY fecha_aprobacion ASC
         
         

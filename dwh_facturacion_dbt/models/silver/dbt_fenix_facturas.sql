@@ -48,11 +48,27 @@ cleaned_facturas AS (
 
 ),
 
+fenix_dedup AS (
+    SELECT
+        codigo_documento,
+        MAX(co_0.grupo_vendedor) AS grupo_vendedor_temp
+    FROM cleaned_facturas cf_0
+    JOIN camunda_dedup co_0 ON cf_0.numero_factura = co_0.numero_factura
+    WHERE codigo_factura NOT LIKE 'DV%'
+    GROUP BY codigo_documento
+),
+
+
+
+
 parsed_facturas AS (
 
     SELECT
         cf_0.codigo_factura,
-        cf_0.codigo_documento,
+        CASE
+            WHEN cf_0.codigo_documento = '' THEN cf_0.codigo_factura
+            ELSE cf_0.codigo_documento
+        END AS codigo_documento,
         cf_0.codigo_cliente,
         cf_0.numero_factura,
         cf_0.numero_serie,
@@ -70,23 +86,50 @@ parsed_facturas AS (
         cf_0.codigo_vendedor,
         cf_0.fecha_emision,
 
-        split_part(
-            split_part(cf_0.comentario_2, 'CODDESCUENTO ', 2),
-            ' ',
-            1
+        COALESCE(
+            NULLIF(
+                split_part(
+                    split_part(cf_0.comentario_2, 'CODDESCUENTO ', 2),
+                    ' ',
+                    1
+                ),
+                ''
+            ),
+            'SIN CODIGO DE DESCUENTO'
         ) AS codigo_descuento,
 
-        co_0.grupo_vendedor as grupo_vendedor_temp
+        fo_0.grupo_vendedor_temp
 
     FROM cleaned_facturas cf_0
-    LEFT JOIN camunda_dedup co_0 ON cf_0.numero_factura = co_0.numero_factura
+    LEFT JOIN fenix_dedup fo_0 ON cf_0.codigo_documento = fo_0.codigo_documento
 
 ),
 
 facturas_convenios AS (
     SELECT fc_0.codigo_documento
     FROM parsed_facturas fc_0
-    WHERE fc_0.codigo_descuento LIKE '%ALIANZA%'
+    WHERE
+        fc_0.codigo_descuento LIKE '%ALIANZA%'
+        OR fc_0.codigo_descuento LIKE '%COLEGIOABOGADO%'
+        OR fc_0.codigo_descuento LIKE '%ANAMER%'
+
+),
+
+facturas_sucursales AS (
+    SELECT
+        pf.codigo_documento,
+        COALESCE(rit_0.id_sucursal, pe.id_sucursal) AS id_sucursal,
+        pf.codigo_vendedor
+
+
+    FROM parsed_facturas pf
+    JOIN {{ source("features", "puntos_emision") }} pe
+        ON pe.serial_punto_emision = pf.numero_serie
+        AND pf.fecha_emision >= pe.fecha_apertura
+        AND pf.fecha_emision < pe.fecha_cierre
+    LEFT JOIN {{ref('reasignacion_islas_temporales')}} rit_0 ON pf.numero_factura = rit_0.numero_factura
+    WHERE pf.codigo_factura NOT LIKE 'DV%'
+
 ),
 
 enriched_facturas AS (
@@ -114,22 +157,25 @@ enriched_facturas AS (
         pf.iva,
         pf.total,
         pf.total_iva,
-
-        pf.codigo_vendedor,
-        pf.fecha_emision,
         CASE
-            WHEN rit_0.numero_factura IS NOT NULL THEN rit_0.id_sucursal
+            WHEN fs_0.codigo_vendedor IS NOT NULL THEN fs_0.codigo_vendedor
+            ELSE pf.codigo_vendedor
+        END AS codigo_vendedor,
+        pf.fecha_emision,
+        grupo_vendedor_temp,
+        CASE
+            WHEN fs_0.id_sucursal IS NOT NULL THEN fs_0.id_sucursal
             ELSE pe.id_sucursal
-        END AS id_sucursal,
-        grupo_vendedor_temp
+        END AS id_sucursal
+
 
     FROM parsed_facturas pf
-    LEFT  JOIN {{ source("features", "puntos_emision") }} pe
+    LEFT JOIN facturas_sucursales fs_0 ON pf.codigo_documento = fs_0.codigo_documento
+    LEFT JOIN {{ source("features", "puntos_emision") }} pe
         ON pe.serial_punto_emision = pf.numero_serie
         AND pf.fecha_emision >= pe.fecha_apertura
         AND pf.fecha_emision < pe.fecha_cierre
-    LEFT JOIN {{ref('reasignacion_islas_temporales')}} rit_0 ON pf.numero_factura = rit_0.numero_factura
-    LEFT JOIN {{ref('dbt_dim_codigos')}} dco_0 ON pf.comentario_3 = dco_0.codigo
+    LEFT JOIN {{ref('dbt_fenix_codigos')}} dco_0 ON pf.comentario_3 = dco_0.codigo
     LEFT JOIN facturas_convenios fc_0 ON pf.codigo_documento = fc_0.codigo_documento
 )
 

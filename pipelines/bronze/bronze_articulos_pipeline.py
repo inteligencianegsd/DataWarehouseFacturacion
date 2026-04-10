@@ -33,7 +33,7 @@ class PipelineConfig:
                 SourceSpec("fenix", "FENIX", "initialization", "articulos.sql")
             ],
             RunMode.INCREMENTAL: [
-                SourceSpec("fenix", "FENIX", "incremental", "articulos_incremental.sql")
+                SourceSpec("fenix", "FENIX", "initialization", "articulos.sql")
             ]
         }
 
@@ -49,10 +49,7 @@ class BronzeArticulosPipeline:
         self.pipeline_config = pipeline_config or PipelineConfig(app_config)
 
     def _build_params_for_mode(self) -> Optional[dict[str, object]]:
-        if self.pipeline_config.mode_pipeline == RunMode.INICIAL:
-            return None
-        with get_session(self.database_config.db_alias_load) as session:
-            return None
+        return None
         # Descomentar en caso de buscar una Act. incremental en funcion de un campo
         #     max_emission_date = DatabaseConfig.model_class.get_last_transaction_date(session)
         # return {"max_emission_date": max_emission_date}

@@ -67,11 +67,14 @@ enriched_articulos AS (
 )
 
 SELECT
-    creation_date,
-    update_date,
-    codigo,
-    nombre,
-    vigencia,
-    familia,
-    tipo_plan
-FROM enriched_articulos
+    COALESCE(fac.creation_date, enr.creation_date) AS creation_date,
+    COALESCE(fac.update_date, enr.update_date) AS update_date,
+    COALESCE(TRIM(fac.codigo), enr.codigo) AS codigo,
+    COALESCE(TRIM(fac.nombre), enr.nombre) AS nombre,
+    COALESCE(TRIM(fac.vigencia), enr.vigencia) AS vigencia,
+    COALESCE(TRIM(fac.familia), enr.familia) AS familia,
+    COALESCE(TRIM(fac.tipo_plan), enr.tipo_plan) AS tipo_plan,
+    TRIM(fac.concepto) AS concepto
+
+FROM enriched_articulos enr
+FULL OUTER JOIN {{ ref('fenix_articulos_corregidos') }} fac ON enr.codigo = fac.codigo

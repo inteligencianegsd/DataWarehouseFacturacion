@@ -32,7 +32,7 @@ class PipelineConfig:
                 SourceSpec("camunda", "CAMUNDA", "initialization", "grupo_vendedor.sql")
             ],
             RunMode.INCREMENTAL: [
-                SourceSpec("camunda", "CAMUNDA", "incremental", "grupo_vendedor_incremental.sql")
+                SourceSpec("camunda", "CAMUNDA", "incremental", "camunda_productos_incremental.sql")
             ]
         }
 

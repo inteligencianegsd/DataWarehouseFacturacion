@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     app_config = AppConfig(
         db_alias="LOCAL",
-        run_mode=RunMode.INICIAL
+        run_mode=RunMode.INCREMENTAL
     )
 
     log.info(f"Modo de ejecución: {app_config.run_mode}. Ejecucion en la Base {app_config.db_alias}")
@@ -52,19 +52,19 @@ if __name__ == "__main__":
                 # BronzeCodigosEntity,
                 # BronzeArticulosEntity,
                 # BronzeFacturaEntity,
-                BronzeTranfacEntity,
+                # BronzeTranfacEntity,
                 # BronzeClienteEntity,
                 # BronzeVendedoresEntity
             ])
             create_all_tables(session)
 
     BronzeOperatividadPipeline(app_config).run()
-    # BronzeCodigosPipeline(app_config).run()
-    # BronzeArticulosPipeline(app_config).run()
-    # BronzeFacturasPipeline(app_config).run()
+    BronzeCodigosPipeline(app_config).run()
+    BronzeArticulosPipeline(app_config).run()
+    BronzeFacturasPipeline(app_config).run()
     BronzeTranfacPipeline(app_config).run()
-    # BronzeClientesPipeline(app_config).run()
-    # BronzeVendedoresPipeline(app_config).run()
+    BronzeClientesPipeline(app_config).run()
+    BronzeVendedoresPipeline(app_config).run()
 
     # Para un  proceso mas optimo se debe rdefinir en esta script
     # db_alias_load: str = "LOCAL"

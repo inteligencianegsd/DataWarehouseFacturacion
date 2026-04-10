@@ -67,6 +67,18 @@ seeds:
         codigo_articulo: varchar(30)
         verificacion_vendedor: boolean
 
+    fenix_articulos_corregidos:
+      +schema: features
+      +column_types:
+        creation_date: timestamp
+        update_date: timestamp
+        codigo: text
+        nombre: text
+        vigencia: text
+        familia: text
+        tipo_plan: text
+        concepto: text
+
     vendedores_comercial:
       +schema: features
       +column_types:
@@ -92,6 +104,13 @@ seeds:
       +column_types:
         codigo_articulo: varchar(30)
         codigo_comentario_3: varchar(30)
+
+    reasignacion_grupo_vendedor:
+      +schema: features
+      +column_types:
+        codigo_documento: varchar(30)
+        grupo_asignado: varchar(30)
+        motivo: varchar(255)
 
 
 

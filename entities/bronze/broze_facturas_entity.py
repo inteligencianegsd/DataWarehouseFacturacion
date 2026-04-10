@@ -30,11 +30,12 @@ class BronzeFacturaEntity(Base, BaseModel):
     total = Column(Numeric)
     codven = Column(String(10))
     emision = Column(DateTime(timezone=False))
+    fecha_hora = Column(DateTime(timezone=False))
 
     @classmethod
     def get_last_transaction_date(cls, session: Session, where_func=None):
         query = session.query(
-            func.max(cls.emision)
+            func.max(cls.fecha_hora)
         )
         if where_func:
             query = where_func(query)

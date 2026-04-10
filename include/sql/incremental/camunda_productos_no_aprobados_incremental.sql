@@ -1,25 +1,22 @@
    SELECT
          t.id_tramite,
          u.username AS cedula,
-         CASE 
-			    WHEN fs.fecha_aprobacion IS NOT NULL THEN fs.fecha_aprobacion::TIMESTAMP 
+         CASE
+			    WHEN fs.fecha_aprobacion IS NOT NULL THEN fs.fecha_aprobacion::TIMESTAMP
 			    ELSE t.fecha_fin_tramite
-	      END AS fecha_aprobacion,
+	     END AS fecha_aprobacion,
          f.factura_externa AS factura,
          t.fecha_inicio_tramite,
         case WHEN d.tipo_persona=521 THEN d.numero_ruc ELSE d.ruc_empresa_representante_legal END AS "ruc",
-        CASE WHEN d.tipo_persona=521 AND d.numero_ruc IS NULL THEN u.username||'001' 
+        CASE WHEN d.tipo_persona=521 AND d.numero_ruc IS NULL THEN u.username||'001'
         WHEN d.tipo_persona=521 AND d.numero_ruc IS NOT NULL THEN d.numero_ruc
         ELSE d.ruc_empresa_representante_legal END AS "ruc_aux",
         c_2.valor AS tipo_firma,
-         CASE
-			    WHEN fs.serial_firma IS NOT NULL THEN fs.serial_firma
-			    ELSE CONCAT(u.username,t.fecha_fin_tramite::VARCHAR)
-	      END AS serial_firma,
+        CONCAT(u.username,(f.fecha_factura::DATE)::VARCHAR, f.factura_externa)  AS serial_firma,
         'ARCHIVO' AS medio,
         c_3.nombre AS producto,
         c_4.nombre  AS grupo_vendedor,
-        'APROBADO' AS estado,
+        'NO APROBADO' AS estado,
         f.fecha_factura
    FROM
         public.tramite t
@@ -49,9 +46,10 @@
         AND t.estado_registro = TRUE
         AND u.tipo <> 781
         AND t.id_proceso IN (482, 481, 487, 489, 488)
-        AND t.id_tarea IN (620, 621)
+        AND (t.id_tarea NOT IN (620, 621) OR (t.id_tarea  IN (620, 621) AND f.estado_registro = FALSE))
         AND (fs.estado_registro = TRUE OR fs.estado_registro IS NULL)
-        AND f.estado_registro = TRUE
-   ORDER BY c_4.nombre
-        
-        
+        and f.factura_externa IS NOT null
+        AND f.factura_externa != ''
+        AND f.fecha_factura > :max_incremental_date
+   ORDER BY f.fecha_factura ASC
+

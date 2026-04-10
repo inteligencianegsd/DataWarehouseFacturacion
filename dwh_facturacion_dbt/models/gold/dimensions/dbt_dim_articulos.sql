@@ -40,4 +40,9 @@ SELECT
     verificacion_vendedor,
     is_codigo_comercial,
     concepto
-FROM stg_articulos
+FROM stg_articulos sa_0
+WHERE EXISTS (
+    SELECT 1
+    FROM {{ref('dbt_fenix_tranfac')}} t_0
+    WHERE sa_0.codigo_articulo = t_0.codigo_articulo
+) OR codigo_articulo like 'SF.MAN%'

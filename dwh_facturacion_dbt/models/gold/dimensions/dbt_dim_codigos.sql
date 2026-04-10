@@ -24,6 +24,11 @@ WITH stg_codigos AS (
         plan,
         REPLACE(vigencia, 'VIGENCIA ', '') AS vigencia
     FROM {{ref('dbt_fenix_codigos')}} dco_0
+--    WHERE EXISTS (
+--        SELECT 1
+--        FROM {{ref('dbt_fenix_facturas')}} f_0
+--        WHERE f_0.comentario_3 = dco_0.codigo
+--    )
 
 )
 

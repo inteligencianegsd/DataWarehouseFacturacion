@@ -38,15 +38,35 @@ notas_credito AS (
 
 camunda_dedup AS (
     SELECT *
+        FROM (
+            SELECT
+                *,
+                ROW_NUMBER() OVER (
+                    PARTITION BY numero_factura
+                    ORDER BY fecha_aprobacion ASC
+                ) as rn
+            FROM {{ ref('dbt_camunda_operatividad') }}
+        ) ranked
+    WHERE rn = 1
+),
+
+fenix_dedup AS (
+    SELECT
+        codigo_documento,
+        tipo_venta
     FROM (
         SELECT
-            *,
+            t_0.codigo_documento,
+            co_0.tipo_venta,
             ROW_NUMBER() OVER (
-                PARTITION BY numero_factura
-                ORDER BY fecha_aprobacion ASC
-            ) as rn
-        FROM {{ ref('dbt_camunda_operatividad') }}
-    ) ranked
+                PARTITION BY t_0.codigo_documento
+                ORDER BY co_0.tipo_venta -- puedes cambiar este criterio
+            ) AS rn
+        FROM stg_facturas t_0
+        LEFT JOIN camunda_dedup co_0
+            ON t_0.numero_factura = co_0.numero_factura
+        WHERE t_0.codigo_factura NOT LIKE 'DV%'
+    ) sub
     WHERE rn = 1
 ),
 
@@ -60,10 +80,14 @@ enriched_facturas AS (
         t_0.comentario_3,
         t_0.codigo_descuento,
         CASE WHEN nc_0.codigo_documento IS NOT NULL THEN 'ANULADO' ELSE 'FACTURADO' END AS estado_factura,
-        co_0.tipo_emision as tipo_venta
+        CASE
+            WHEN fo_0.tipo_venta IS NOT NULL THEN fo_0.tipo_venta
+            WHEN dc_0.concepto_2 IS NOT NULL THEN dc_0.concepto_2
+        ELSE NULL END AS tipo_venta
     FROM stg_facturas t_0
     LEFT JOIN notas_credito nc_0 ON t_0.codigo_documento = nc_0.codigo_documento
-    LEFT JOIN camunda_dedup co_0 ON t_0.numero_factura = co_0.numero_factura
+    LEFT JOIN fenix_dedup fo_0 ON t_0.codigo_documento = fo_0.codigo_documento
+    LEFT JOIN {{ref('dbt_dim_codigos')}} dc_0 ON t_0.comentario_3 = dc_0.codigo
 )
 
 SELECT

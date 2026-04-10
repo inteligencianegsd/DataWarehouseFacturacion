@@ -35,6 +35,16 @@ facturas_convenios AS (
     WHERE f_0.codigo_descuento LIKE '%ALIANZA%'
 ),
 
+facturas_agentes AS (
+    SELECT DISTINCT codigo_documento
+    FROM {{ref('dbt_fenix_facturas')}} f_0
+    JOIN {{ref('dbt_dim_vendedores')}} dv_0 ON f_0.codigo_vendedor = dv_0.codigo_vendedor
+    LEFT JOIN {{ref('vendedores_agentes')}} va_0 ON dv_0.codigo_vendedor = va_0.codigo_vendedor
+    WHERE f_0.comentario_3 LIKE '%AGENT%'
+    OR f_0.comentario_2 LIKE '%AGENT%'
+    OR va_0.codigo_vendedor IS NOT NULL
+),
+
 stg_fact_facturacion AS (
     SELECT
         df_0.id_factura,
@@ -62,11 +72,12 @@ stg_fact_facturacion AS (
         f_0.total - f_0.total_iva AS total_sin_iva,
 
         CASE
+            WHEN rgv_0.codigo_documento IS NOT NULL THEN rgv_0.grupo_asignado
 --            WHEN f_0.comentario_3 like '%COMERCIAL%' THEN 'COMERCIAL'
             WHEN (da_0.familia = 'LICENCIAS' AND dc_0.is_same_corporate_group) THEN 'LICENCIAS TELCONET'
             WHEN (f_0.comentario_3 like '%TERCER%' AND da_0.familia IN ('FIRMAS ELECTRONICAS', 'SISTEMA DE FACTURACION')) THEN 'GRUPO TERCEROS'
             WHEN f_0.comentario_3 like '%DISTRIBUI%' THEN 'GRUPO DISTRIBUIDORES'
-            WHEN (f_0.comentario_3 like '%AGENT%'  OR va_0.codigo_vendedor IS NOT NULL) THEN 'GRUPO AGENTES'
+            WHEN fa_0.codigo_documento IS NOT NULL THEN 'GRUPO AGENTES'
             WHEN dc_0.codigo_cliente = '1792496136' THEN 'GRUPO GEEKTECH'
             WHEN fc_0.codigo_documento IS NOT NULL THEN 'COMERCIAL'
 --            WHEN da_0.codigo_articulo = 'F.E.F.A.V.' THEN 'COMERCIAL'
@@ -91,7 +102,8 @@ stg_fact_facturacion AS (
     LEFT JOIN {{(ref('reasignacion_periodo_fiscal'))}} rpf_0 ON f_0.numero_factura = rpf_0.numero_factura
     --LEFT JOIN {{ref('vendedores_comercial')}} vc_0 ON dv_0.codigo_vendedor = vc_0.codigo_vendedor
     LEFT JOIN facturas_comercial fc_0 on f_0.codigo_documento = fc_0.codigo_documento
-    LEFT JOIN {{ref('vendedores_agentes')}} va_0 ON dv_0.codigo_vendedor = va_0.codigo_vendedor
+    LEFT JOIN facturas_agentes fa_0 on f_0.codigo_documento = fa_0.codigo_documento
+    LEFT JOIN {{ref('reasignacion_grupo_vendedor')}} rgv_0 ON f_0.codigo_documento = rgv_0.codigo_documento
     WHERE NOT EXISTS (
         SELECT 1
         FROM {{ref('facturas_excluidas')}} fe_0

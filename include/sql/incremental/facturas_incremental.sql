@@ -17,4 +17,5 @@ SELECT
 	f.emision,
 	f.fecha_hora
 FROM security_data.facturas f
+WHERE f.fecha_hora > :max_incremental_date
 ORDER BY f.emision ASC

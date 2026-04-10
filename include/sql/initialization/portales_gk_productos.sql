@@ -1,10 +1,11 @@
-SELECT 
-
+SELECT
+   id_cli AS id_tramite,
    CASE 
 	    WHEN cedula IS NULL THEN LEFT(ruc, 10)
 	    ELSE cedula
 	END AS cedula, 
-	case when fecha_aprob IS NULL then fecha_registro ELSE fecha_aprob END AS fecha_aprobacion,  
+	case when fecha_aprob IS NULL then fecha_registro ELSE fecha_aprob END AS fecha_aprobacion,
+	case when fecha_aprob IS NULL then fecha_registro ELSE fecha_aprob END AS fecha_factura,
 	facturaEmitida AS factura, 
 	ruc AS ruc,
 	tipoPersona AS tipo_firma,
@@ -15,7 +16,8 @@ SELECT
 	    WHEN tipo_servicio = 'SIN_FIRMA' THEN 'SF Sin Firma'
 	    ELSE 'SF Con FIRMA' 
 	END AS producto,
-	1   AS sf_control
+	1   AS sf_control,
+	'APROBADO' as estado
 	 
 FROM 
     SistemaFacturacion.tb_registro_cli_gt 
