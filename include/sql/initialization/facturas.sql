@@ -10,7 +10,6 @@ SELECT
 	f.comen3,
 	f.subtotal,
 	f.desc0,
-	f.iva,
 	f.total_iva ,
 	f.total,
 	f.codven,

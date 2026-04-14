@@ -69,7 +69,10 @@ stg_fact_facturacion AS (
         t_0.valor_unitario,
         t_0.porcentaje_descuento,
         t_0.cantidad_articulos * t_0.valor_unitario * (100 - t_0.porcentaje_descuento) / 100 AS subtotal_articulo,
+        t_0.cantidad_articulos * t_0.valor_unitario * (t_0.porcentaje_descuento) / 100 AS descuento_articulo,
         f_0.total - f_0.total_iva AS total_sin_iva,
+        t_0.porcentaje_iva,
+
 
         CASE
             WHEN rgv_0.codigo_documento IS NOT NULL THEN rgv_0.grupo_asignado
@@ -135,6 +138,38 @@ stg_fact_facturacion_correccion AS (
 
          (subtotal_articulo / NULLIF(suma_subtotales, 0)) * diferencia AS ajuste_centavos
     FROM stg_fact_facturacion_diferencia
+),
+
+stg_fact_subtotal AS (
+    SELECT
+        id_factura,
+        fecha_emision,
+        id_cliente,
+        id_vendedor,
+        id_articulo,
+        id_sucursal,
+        id_codigo,
+        cantidad_articulos,
+        valor_unitario,
+        porcentaje_descuento,
+        case
+            when  diferencia <> 0 then ROUND(subtotal_articulo + ajuste_centavos, 2)
+            else subtotal_articulo
+        END AS subtotal_articulo,
+        porcentaje_iva,
+
+    --  Validación (debería dar 0 o muy cercano)
+    --  SUM(subtotal_articulo + ajuste_centavos) OVER (PARTITION BY id_factura) - total_sin_iva AS residuo_control,
+        grupo_vendedor,
+        descuento_articulo
+    FROM stg_fact_facturacion_correccion
+),
+stg_fact_iva_articulo AS (
+    SELECT
+        *,
+        ROUND(sfs_0.subtotal_articulo * sfs_0.porcentaje_iva / 100, 2) AS total_iva
+    FROM stg_fact_subtotal sfs_0
+
 )
 
 SELECT
@@ -148,14 +183,10 @@ SELECT
     cantidad_articulos,
     valor_unitario,
     porcentaje_descuento,
-    ajuste_centavos,
-    case
-        when  diferencia <> 0 then ROUND(subtotal_articulo + ajuste_centavos, 2)
-        else subtotal_articulo
-    END AS subtotal_articulo,
+    porcentaje_iva,
+    grupo_vendedor,
+    descuento_articulo,
+    subtotal_articulo,
+    total_iva
 
-    -- Validación (debería dar 0 o muy cercano)
-    SUM(subtotal_articulo + ajuste_centavos) OVER (PARTITION BY id_factura) - total_sin_iva AS residuo_control,
-    grupo_vendedor
-
-FROM stg_fact_facturacion_correccion
+FROM stg_fact_iva_articulo

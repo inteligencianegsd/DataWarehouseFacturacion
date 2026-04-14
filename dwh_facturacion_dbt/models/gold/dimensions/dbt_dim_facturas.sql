@@ -21,7 +21,8 @@ WITH stg_facturas AS (
         comentario_2,
         comentario_3,
         id_sucursal,
-        codigo_descuento
+        codigo_descuento,
+        is_nc
     FROM {{ ref('dbt_fenix_facturas')}} ff_0
     WHERE NOT EXISTS (
         SELECT 1
@@ -33,7 +34,7 @@ WITH stg_facturas AS (
 notas_credito AS (
     SELECT distinct  codigo_documento
     FROM {{ ref('dbt_fenix_facturas')}}
-    WHERE codigo_factura LIKE 'DV%'
+    WHERE is_nc
 ),
 
 camunda_dedup AS (
@@ -65,7 +66,7 @@ fenix_dedup AS (
         FROM stg_facturas t_0
         LEFT JOIN camunda_dedup co_0
             ON t_0.numero_factura = co_0.numero_factura
-        WHERE t_0.codigo_factura NOT LIKE 'DV%'
+        WHERE NOT t_0.is_nc
     ) sub
     WHERE rn = 1
 ),

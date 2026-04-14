@@ -5,6 +5,7 @@ SELECT
     codart,
     cantidad_d,
     precio,
-    desct
+    desct,
+    iva
 FROM security_data.tranfac
 ORDER BY id_tranfac ASC

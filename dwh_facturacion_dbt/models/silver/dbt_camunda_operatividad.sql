@@ -19,8 +19,8 @@ WITH cleaned_articulos AS (
         END as medio,
         sf_control,
         CASE
-            WHEN TRIM(UPPER(producto)) IN ('EMISION SF SIN FIRMA', 'SF SIN FIRMA') THEN 'SF SIN FIRMA'
-            WHEN TRIM(UPPER(producto)) IN ('RENOVACION SF', 'EMISION SF')          THEN 'SF CON FIRMA'
+            WHEN TRIM(UPPER(producto)) IN ('EMISION SF SIN FIRMA', 'SF SIN FIRMA', 'SF CON FIRMA') THEN 'SF'
+            WHEN TRIM(UPPER(producto)) IN ('RENOVACION SF', 'EMISION SF')          THEN 'SF'
             WHEN TRIM(UPPER(producto)) IN ('EMISION', 'RENOVACION')                THEN 'FIRMA'
             ELSE TRIM(UPPER(producto))
         END as producto,
@@ -34,16 +34,35 @@ WITH cleaned_articulos AS (
 con_fecha_primer_aprobado AS (
     SELECT
         *,
-        -- Fecha del primer registro APROBADO por grupo según producto
+        CASE
+            WHEN producto = 'FIRMA' THEN
+                MIN(CASE WHEN estado = 'APROBADO' THEN fecha_aprobacion END)
+                    OVER (PARTITION BY cedula, producto)
+            WHEN producto = 'SF' THEN
+                MIN(CASE WHEN estado = 'APROBADO' THEN fecha_aprobacion END)
+                    OVER (PARTITION BY ruc_aux, producto)
+        END as fecha_primer_aprobado_con_producto,
+
         CASE
             WHEN producto = 'FIRMA' THEN
                 MIN(CASE WHEN estado = 'APROBADO' THEN fecha_aprobacion END)
                     OVER (PARTITION BY cedula)
-            WHEN producto IN ('SF SIN FIRMA', 'SF CON FIRMA') THEN
+            WHEN producto = 'SF' THEN
                 MIN(CASE WHEN estado = 'APROBADO' THEN fecha_aprobacion END)
                     OVER (PARTITION BY ruc_aux)
-        END as fecha_primer_aprobado
+        END as fecha_primer_aprobado_sin_producto
     FROM cleaned_articulos
+),
+
+-- Luego en el siguiente CTE seleccionas cuál usar:
+enriched_fecha_primera_aprobacion AS (
+    SELECT
+        *,
+        CASE
+            WHEN fecha_aprobacion >= '2026-04-09' THEN fecha_primer_aprobado_con_producto
+            ELSE fecha_primer_aprobado_sin_producto
+        END as fecha_primer_aprobado
+    FROM con_fecha_primer_aprobado
 ),
 
 enriched AS (
@@ -63,7 +82,7 @@ enriched AS (
 
             ELSE 'RENOVACION'
         END as tipo_venta
-    FROM con_fecha_primer_aprobado
+    FROM enriched_fecha_primera_aprobacion
 ),
 
 

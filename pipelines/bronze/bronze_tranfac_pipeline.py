@@ -20,7 +20,7 @@ class DatabaseConfig:
         self.model_class: Type[BronzeTranfacEntity] = BronzeTranfacEntity
         self.mode: ModePersistence = ModePersistence.UPDATE
         self.conflict_cols: tuple[str, ...] = ("id_tranfac", "unico")
-        self.update_cols: tuple[str, ...] = ('numfac', 'codart', 'cantidad_d', 'precio', 'desct')
+        self.update_cols: tuple[str, ...] = ('numfac', 'codart', 'cantidad_d', 'precio', 'desct', 'iva')
         self.batch_size: int = 6000
         self.commit_per_batch: bool = True
 

@@ -21,7 +21,7 @@ class DatabaseConfig:
         self.conflict_cols: tuple[str, ...] = ('numfac',)
         self.update_cols: tuple[str, ...] = (
             'numdoc', 'cliente', 'numser', 'pedido', 'comen1', 'comen2', 'comen3', 'subtotal',
-            'desc0', 'iva', 'total_iva', 'total', 'codven', 'emision'
+            'desc0', 'total_iva', 'total', 'codven', 'emision'
         )
         self.batch_size: int = 4000
         self.commit_per_batch: bool = True

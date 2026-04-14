@@ -25,7 +25,6 @@ class BronzeFacturaEntity(Base, BaseModel):
     comen3 = Column(String(70))
     subtotal = Column(Numeric)
     desc0 = Column(Numeric)
-    iva = Column(Numeric)
     total_iva = Column(Numeric)
     total = Column(Numeric)
     codven = Column(String(10))

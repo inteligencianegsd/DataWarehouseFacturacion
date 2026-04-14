@@ -10,6 +10,7 @@ SELECT
     TRIM(codart) AS codigo_articulo,
     cantidad_d AS cantidad_articulos,
     precio AS valor_unitario,
-    desct AS porcentaje_descuento
+    desct AS porcentaje_descuento,
+    iva as porcentaje_iva
 
 FROM {{ source("fenix_bronze", "fenix_tranfac") }}

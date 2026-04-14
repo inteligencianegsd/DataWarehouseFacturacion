@@ -29,6 +29,7 @@ class BronzeTranfacEntity(Base, BaseModel):
     cantidad_d = Column(Integer)
     precio = Column(Numeric)
     desct = Column(Numeric)
+    iva = Column(Numeric)
 
     @classmethod
     def get_last_transaction_id(cls, session: Session, where_func=None):

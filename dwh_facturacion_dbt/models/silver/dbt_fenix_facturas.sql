@@ -34,14 +34,14 @@ cleaned_facturas AS (
 
         subtotal,
         desc0 AS valor_descuento,
-        iva,
         total,
         total_iva,
         CASE
             WHEN TRIM(codven) IN ('0', '28', '123',  'NO') THEN '1001'
             ELSE TRIM(codven) END
         AS codigo_vendedor,
-        emision::date AS fecha_emision
+        emision::date AS fecha_emision,
+        CASE WHEN TRIM(numfac) LIKE 'DV%' THEN TRUE ELSE FALSE END AS is_nc
 
     FROM {{ source("fenix_bronze", "fenix_facturas") }}
     WHERE total_iva <> 0
@@ -54,7 +54,7 @@ fenix_dedup AS (
         MAX(co_0.grupo_vendedor) AS grupo_vendedor_temp
     FROM cleaned_facturas cf_0
     JOIN camunda_dedup co_0 ON cf_0.numero_factura = co_0.numero_factura
-    WHERE codigo_factura NOT LIKE 'DV%'
+    WHERE NOT is_nc
     GROUP BY codigo_documento
 ),
 
@@ -80,7 +80,6 @@ parsed_facturas AS (
         AS comentario_3,
         cf_0.subtotal,
         cf_0.valor_descuento,
-        cf_0.iva,
         cf_0.total,
         cf_0.total_iva,
         cf_0.codigo_vendedor,
@@ -98,7 +97,8 @@ parsed_facturas AS (
             'SIN CODIGO DE DESCUENTO'
         ) AS codigo_descuento,
 
-        fo_0.grupo_vendedor_temp
+        fo_0.grupo_vendedor_temp,
+        cf_0.is_nc
 
     FROM cleaned_facturas cf_0
     LEFT JOIN fenix_dedup fo_0 ON cf_0.codigo_documento = fo_0.codigo_documento
@@ -128,7 +128,7 @@ facturas_sucursales AS (
         AND pf.fecha_emision >= pe.fecha_apertura
         AND pf.fecha_emision < pe.fecha_cierre
     LEFT JOIN {{ref('reasignacion_islas_temporales')}} rit_0 ON pf.numero_factura = rit_0.numero_factura
-    WHERE pf.codigo_factura NOT LIKE 'DV%'
+    WHERE NOT pf.is_nc
 
 ),
 
@@ -154,7 +154,6 @@ enriched_facturas AS (
 
         pf.subtotal,
         pf.valor_descuento,
-        pf.iva,
         pf.total,
         pf.total_iva,
         CASE
@@ -166,7 +165,8 @@ enriched_facturas AS (
         CASE
             WHEN fs_0.id_sucursal IS NOT NULL THEN fs_0.id_sucursal
             ELSE pe.id_sucursal
-        END AS id_sucursal
+        END AS id_sucursal,
+        pf.is_nc
 
 
     FROM parsed_facturas pf
@@ -191,11 +191,11 @@ SELECT
     codigo_descuento,
     subtotal,
     valor_descuento,
-    iva,
     total,
     total_iva,
     codigo_vendedor,
     fecha_emision,
     id_sucursal,
-    grupo_vendedor_temp
+    grupo_vendedor_temp,
+    is_nc
 FROM enriched_facturas
