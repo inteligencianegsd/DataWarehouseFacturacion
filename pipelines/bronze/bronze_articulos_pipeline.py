@@ -20,7 +20,7 @@ class DatabaseConfig:
         self.mode: ModePersistence = ModePersistence.UPDATE
         self.conflict_cols: tuple[str, ...] = ('codart',)
         self.update_cols: tuple[str, ...] = ('update_date', 'nomart', 'nomart2')
-        self.commit_per_batch: bool = False
+        self.commit_per_batch: bool = True
 
 
 class PipelineConfig:

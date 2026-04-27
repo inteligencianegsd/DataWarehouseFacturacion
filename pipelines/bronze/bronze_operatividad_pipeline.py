@@ -18,7 +18,7 @@ from utils.source_spec import SourceSpec
 
 class DatabaseConfig:
     def __init__(self, app_config):
-        self.db_alias_load: str = "LOCAL"
+        self.db_alias_load: str = app_config.db_alias
         self.model_class: Type[BronzeOperatividadEntity] = BronzeOperatividadEntity
         self.mode: ModePersistence = ModePersistence.UPDATE
         self.batch_size: int = 6000

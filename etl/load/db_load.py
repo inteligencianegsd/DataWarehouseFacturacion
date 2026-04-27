@@ -114,10 +114,11 @@ class DWBatchedLoader(BaseEstimator, TransformerMixin):
             total_rows = len(X)
             total_batches = (total_rows + self.batch_size - 1) // self.batch_size
             self.logger.info(
-                "Iniciando carga en batches. Total filas: %s, batch_size: %s, total_batches: %s",
+                "Iniciando carga en batches. Total filas: %s, batch_size: %s, total_batches: %s. Se cargara info en la Base: %s",
                 total_rows,
                 self.batch_size,
                 total_batches,
+                self.db_alias,
             )
 
             with get_session(db_alias=self.db_alias) as session:

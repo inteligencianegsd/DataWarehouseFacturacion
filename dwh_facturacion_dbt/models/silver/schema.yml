@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: dbt_fenix_articulos.sql
+  - name: dbt_fenix_articulos
     description: "Modelo de la capa Silver con los códigos de Artículos provenientes de Fenix. Realiza limpieza de texto, extracción de datos mediante expresiones regulares y categorización de planes y artículos."
     columns:
       - name: creation_date
@@ -67,6 +67,9 @@ models:
             - 'PLAN ILIMITADO' -> 'PLAN PREMIUM'
             - Si contiene la palabra 'TRANSACC' pero no coincide con los anteriores, se le concatena el prefijo 'PLAN '.
             - Si no encuentra coincidencia en las reglas previas, se toma el valor que tenia previamente plan
+      - name: concepto
+        description: "AGREGAR DOCUMENTACION"
+
 
   - name: dbt_fenix_facturas
     description: "Modelo de la capa silver con las facturas transformadas. Estandariza textos, extrae códigos de descuento y formatea fechas."

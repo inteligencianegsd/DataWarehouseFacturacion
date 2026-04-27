@@ -112,6 +112,7 @@ facturas_convenios AS (
         fc_0.codigo_descuento LIKE '%ALIANZA%'
         OR fc_0.codigo_descuento LIKE '%COLEGIOABOGADO%'
         OR fc_0.codigo_descuento LIKE '%ANAMER%'
+        OR fc_0.codigo_descuento LIKE '%FEUE%'
 
 ),
 

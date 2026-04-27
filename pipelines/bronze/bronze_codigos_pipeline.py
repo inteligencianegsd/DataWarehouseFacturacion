@@ -19,7 +19,7 @@ class DatabaseConfig:
         self.db_alias_load: str = app_config.db_alias
         self.model_class: Type[BronzeCodigosEntity] = BronzeCodigosEntity
         self.mode: ModePersistence = ModePersistence.UPDATE
-        self.commit_per_batch: bool = False
+        self.commit_per_batch: bool = True
         self.conflict_cols: tuple[str, ...] = ('codigo',)
         self.update_cols: tuple[str, ...] = (
             'update_date',

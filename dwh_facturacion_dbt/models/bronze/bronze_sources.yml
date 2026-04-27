@@ -1,6 +1,28 @@
 version: 2
 
 sources:
+  - name: features_prev
+    schema: features
+    description: >
+      Esquema de las sucursales utlizado COMPLETAR INFO
+
+    tables:
+      - name: sucursales
+        columns:
+          - name: id_cliente
+            description: "COMPLETAR INFO"
+          - name: nombre_sucursal
+            description: "COMPLETAR INFO"
+          - name: ciudad
+            description: "COMPLETAR INFO"
+          - name: tipo
+            description: "COMPLETAR INFO"
+          - name: nombre_sucursal_subca
+            description: "COMPLETAR INFO"
+          - name: tamano
+            description: "COMPLETAR INFO"
+          - name: tamano_metas
+            description: "COMPLETAR INFO"
   - name: fenix_bronze
     schema: analytics_bronze
     description: >

@@ -209,8 +209,9 @@ models:
           Permite relacionar la tabla de hechos con la dimensión de clientes.
         tests:
           - relationships:
-              to: ref('dbt_dim_clientes')
-              field: id_cliente
+              arguments:
+                to: ref('dbt_dim_clientes')
+                field: id_cliente
 
       - name: id_vendedor
         description: >
@@ -218,8 +219,9 @@ models:
           Permite relacionar la tabla de hechos con la dimensión de vendedores.
         tests:
           - relationships:
-              to: ref('dbt_dim_vendedores')
-              field: id_vendedor
+              arguments:
+                to: ref('dbt_dim_vendedores')
+                field: id_vendedor
 
       - name: id_articulo
         description: >
@@ -227,16 +229,18 @@ models:
           Permite relacionar la tabla de hechos con la dimensión de artículos.
         tests:
           - relationships:
-              to: ref('dbt_dim_articulos')
-              field: id_articulo
+              arguments:
+                to: ref('dbt_dim_articulos')
+                field: id_articulo
 
       - name: id_sucursal
         description: >
           Identificador de la sucursal donde se realizó la venta.
         tests:
           - relationships:
-              to: source("features", "sucursales")
-              field: id_sucursal
+              arguments:
+                to: source("features", "sucursales")
+                field: id_sucursal
 
       - name: cantidad_articulos
         description: >

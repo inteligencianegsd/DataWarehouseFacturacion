@@ -74,13 +74,31 @@ enriched AS (
                  AND fecha_aprobacion = fecha_primer_aprobado
                 THEN 'NUEVO'
 
+            WHEN estado = 'APROBADO' AND fecha_aprobacion > fecha_primer_aprobado
+                THEN 'RENOVACION'
+
             -- Registros NO aprobados: si su fecha_factura es anterior
             -- a la primera aprobación del grupo, es NUEVO
             WHEN estado != 'APROBADO'
                  AND fecha_factura < fecha_primer_aprobado
                 THEN 'NUEVO'
 
-            ELSE 'RENOVACION'
+            WHEN estado != 'APROBADO'
+                 AND fecha_factura > fecha_primer_aprobado
+                THEN 'RENOVACION'
+
+            WHEN estado != 'APROBADO'
+                 AND fecha_factura IS NULL AND fecha_inicio_tramite < fecha_primer_aprobado
+                THEN 'NUEVO'
+
+            WHEN estado != 'APROBADO'
+                 AND fecha_factura IS NULL AND fecha_inicio_tramite > fecha_primer_aprobado
+                THEN 'RENOVACION'
+
+            WHEN fecha_primer_aprobado IS NULL
+                THEN 'NUEVO'
+
+            ELSE 'N/A'
         END as tipo_venta
     FROM enriched_fecha_primera_aprobacion
 ),
