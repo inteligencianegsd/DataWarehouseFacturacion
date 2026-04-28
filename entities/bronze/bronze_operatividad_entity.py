@@ -55,7 +55,7 @@ class BronzeOperatividadEntity(Base, BaseModel):
     @classmethod
     def get_last_billing_date(cls, session: Session, where_func=None):
         query = session.query(
-            func.max(cls.fecha_factura )
+            func.max(cls.fecha_factura)
         )
         if where_func:
             query = where_func(query)

@@ -71,7 +71,7 @@ class BronzeOperatividadPipeline:
                 where_func = lambda q: q.filter(
                     self.database_config.model_class.estado == "APROBADO"
                 )
-                max_incremental_date = self.database_config.model_class.get_last_approbation_date(session, where_func)
+                max_incremental_date = self.database_config.model_class.get_last_billing_date(session, where_func)
         elif query_file == 'camunda_productos_no_aprobados_incremental.sql':
             with get_session(self.database_config.db_alias_load) as session:
                 where_func = lambda q: q.filter(

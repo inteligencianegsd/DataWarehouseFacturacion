@@ -52,7 +52,7 @@
         AND t.id_tarea IN (620, 621)
         AND (fs.estado_registro = TRUE OR fs.estado_registro IS NULL)
         AND f.estado_registro = TRUE
-        AND fecha_aprobacion > :max_incremental_date
-   ORDER BY fecha_aprobacion ASC
+        AND fecha_factura > :max_incremental_date
+   ORDER BY fecha_factura ASC
         
         
