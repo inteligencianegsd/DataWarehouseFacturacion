@@ -3,26 +3,95 @@ version: 2
 sources:
   - name: features_prev
     schema: features
-    description: >
-      Esquema de las sucursales utlizado COMPLETAR INFO
+    description: |
+      En el momento que se realizo este proyecto solo tu yo dios conocian lo que se realizo, si estas leyendo esto
+      mucho despues significa que solo dios sabe lo que se realizo. Ruega haber agregado la documentcion de todos
+      los cambios del DataWarehouse y que tu documentacion sea entendible. ZALY-CB
+      
+      Este source corresponde al esquema features, específicamente para las tablas de puntos_emision y sucursales.
+
+      Si se necesita agregar un nuevo punto de emisión, los cambios deben realizarse directamente en estas tablas.
+
+      Este esquema se mantiene separado de analytics_features porque ya existía antes de la creación del proyecto 
+      actual y es utilizado por varios dashboards. Por esta razón, se decidió no modificarlo, con el fin de evitar
+      afectar los orígenes de datos en Power BI.
+
+      A futuro, cuando los dashboards que dependen de este esquema sean deprecados, se recomienda migrar estas 
+      tablas al esquema analytics_features para mantener mayor consistencia y uniformidad en el modelo de datos.
 
     tables:
       - name: sucursales
+        description: >
+          Sucursales aperturadas por Security Data a lo largo de toda su historia. Esta tabla unicamente se debe 
+          modificar para agregar nuevas sucursales aperturadas. No eliminar los registros de sucursales cerradas puesto 
+          que eliminaria el historico de la misma
         columns:
-          - name: id_cliente
-            description: "COMPLETAR INFO"
+          - name: id_sucursal
+            description: "Id interno de la Tabla"
           - name: nombre_sucursal
-            description: "COMPLETAR INFO"
+            description: "Nombre de la Sucursal en Cuestion"
           - name: ciudad
-            description: "COMPLETAR INFO"
+            description: "Ciudad en la cual se encuentra la sucursal"
           - name: tipo
-            description: "COMPLETAR INFO"
+            description: >
+              Campo existente en el Archivo Previo de Sucursal. NO USAR EL CAMPO puesto que la 
+              info no se encuentra acorde
           - name: nombre_sucursal_subca
-            description: "COMPLETAR INFO"
+            description: > 
+              Identificativo de las sucursales en consultas de SUBCA. Se utiliza para realizar cruces de informacion 
+              en Dashboard de Analisis de Sucursales
           - name: tamano
-            description: "COMPLETAR INFO"
+            description: > 
+              Clasificacion de la sucursal en funcion de su tamano. Utilizado las paras metas de ventas por 
+              sucursal del ano 2025
           - name: tamano_metas
-            description: "COMPLETAR INFO"
+            description: > 
+              Clasificacion de la sucursal en funcion de su tamano. Utilizado las paras metas de ventas por sucursal 
+              del ano 2025 T4 en el cual se reclasifico ciertas sucursales y se debia mantener un historico
+
+      - name: puntos_emision
+        description: |
+          Histórico de los puntos de emisión asociados a las distintas sucursales de SD.
+        
+          En caso de apertura de una nueva sucursal, se debe registrar el punto de emisión
+          correspondiente, asociándolo al id_sucursal respectivo.
+        
+          Para cambios en puntos de emisión de sucursales existentes, se debe actualizar la
+          fecha de cierre del registro vigente y crear un nuevo registro con la información
+          actualizada. Este nuevo registro debe tener una fecha de cierre definida en el futuro.
+        
+          No se permite dejar el campo de fecha de cierre vacío.
+        columns:
+          - name: id_punto_emision
+            description: "Id interno de la Tabla"
+          - name: id_sucursal
+            description: >
+              Clave foránea que establece la relación con el punto de emisión correspondiente.
+
+          - name: fecha_apertura
+            description: |
+              Fecha en la que el punto de emisión inició operaciones.
+
+              Para la validación de la fecha de emisión respecto a la fecha de apertura y cierre,
+              se considera el límite inferior inclusivo y el superior exclusivo. Es decir, la fecha
+              de emisión debe cumplir la siguiente condición:
+
+              `pf.fecha_emision >= pe.fecha_apertura AND pf.fecha_emision < pe.fecha_cierre`
+          - name: fecha_cierre
+            description: |
+              Fecha en la que el punto de emisión finalizo operaciones.
+
+              Para la validación de la fecha de emisión respecto a la fecha de apertura y cierre,
+              se considera el límite inferior inclusivo y el superior exclusivo. Es decir, la fecha
+              de emisión debe cumplir la siguiente condición:
+
+              `pf.fecha_emision >= pe.fecha_apertura AND pf.fecha_emision < pe.fecha_cierre`
+
+          - name: serial_punto_emision
+            description: "Código serial asignado al punto de emisión."
+
+
+
   - name: fenix_bronze
     schema: analytics_bronze
     description: >

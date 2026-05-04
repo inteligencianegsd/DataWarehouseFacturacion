@@ -124,7 +124,7 @@ facturas_sucursales AS (
 
 
     FROM parsed_facturas pf
-    JOIN {{ source("features", "puntos_emision") }} pe
+    JOIN {{ source("features_prev", "puntos_emision") }} pe
         ON pe.serial_punto_emision = pf.numero_serie
         AND pf.fecha_emision >= pe.fecha_apertura
         AND pf.fecha_emision < pe.fecha_cierre
@@ -172,7 +172,7 @@ enriched_facturas AS (
 
     FROM parsed_facturas pf
     LEFT JOIN facturas_sucursales fs_0 ON pf.codigo_documento = fs_0.codigo_documento
-    LEFT JOIN {{ source("features", "puntos_emision") }} pe
+    LEFT JOIN {{ source("features_prev", "puntos_emision") }} pe
         ON pe.serial_punto_emision = pf.numero_serie
         AND pf.fecha_emision >= pe.fecha_apertura
         AND pf.fecha_emision < pe.fecha_cierre

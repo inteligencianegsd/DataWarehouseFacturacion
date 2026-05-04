@@ -35,7 +35,7 @@ if __name__ == "__main__":
     log.info("Inicio Proceso Datawarehouse Facturacion BY ZALY-CB")
 
     app_config = AppConfig(
-        db_alias="LOCAL",
+        db_alias="QUANTA",
         run_mode=RunMode.INCREMENTAL
     )
 
