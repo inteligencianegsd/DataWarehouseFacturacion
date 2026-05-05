@@ -76,6 +76,7 @@ stg_fact_facturacion AS (
 
         CASE
             WHEN rgv_0.codigo_documento IS NOT NULL THEN rgv_0.grupo_asignado
+            WHEN rd_0.grupo_vendedor_reasignado IS NOT NULL AND f_0.comentario_3 LIKE '%TERCER%' AND da_0.familia IN ('FIRMAS ELECTRONICAS', 'SISTEMA DE FACTURACION') THEN grupo_vendedor_reasignado
 --            WHEN f_0.comentario_3 like '%COMERCIAL%' THEN 'COMERCIAL'
             WHEN (da_0.familia = 'LICENCIAS' AND dc_0.is_same_corporate_group) THEN 'LICENCIAS TELCONET'
             WHEN (f_0.comentario_3 like '%TERCER%' AND da_0.familia IN ('FIRMAS ELECTRONICAS', 'SISTEMA DE FACTURACION')) THEN 'GRUPO TERCEROS'
@@ -107,6 +108,7 @@ stg_fact_facturacion AS (
     LEFT JOIN facturas_comercial fc_0 on f_0.codigo_documento = fc_0.codigo_documento
     LEFT JOIN facturas_agentes fa_0 on f_0.codigo_documento = fa_0.codigo_documento
     LEFT JOIN {{ref('reasignacion_grupo_vendedor')}} rgv_0 ON f_0.codigo_documento = rgv_0.codigo_documento
+    LEFT JOIN {{ref('reasignacion_distribuidores')}} rd_0 ON dc_0.codigo_cliente = rd_0.codigo_cliente AND f_0.fecha_emision >= rd_0.fecha_cambio
     WHERE NOT EXISTS (
         SELECT 1
         FROM {{ref('facturas_excluidas')}} fe_0

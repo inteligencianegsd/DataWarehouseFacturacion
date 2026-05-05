@@ -112,6 +112,14 @@ seeds:
         grupo_asignado: varchar(30)
         motivo: varchar(255)
 
+    reasignacion_distribuidores:
+      +schema: features
+      +column_types:
+        codigo_cliente: varchar(15)
+        nombre_cliente: varchar(50)
+        grupo_vendedor_reasignado: varchar(30)
+        fecha_cambio: timestamp
+        motivo: varchar(128)
 
 
 
