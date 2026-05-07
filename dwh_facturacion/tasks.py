@@ -185,3 +185,46 @@ def run_bronze_operatividad(
     from dwh_facturacion.pipelines.bronze.bronze_operatividad_pipeline import BronzeOperatividadPipeline
     app_config = _get_app_config(db_alias, run_mode)
     BronzeOperatividadPipeline(app_config).run()
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+def run_health_check(to_email: str) -> None:
+    """Envía un correo con la versión instalada del paquete.
+
+    Variables de entorno requeridas:
+        SMTP_HOST     — servidor SMTP (ej. smtp.gmail.com)
+        SMTP_PORT     — puerto (ej. 587)
+        SMTP_USER     — correo remitente
+        SMTP_PASSWORD — contraseña o app password
+    """
+    import os
+    import smtplib
+    from datetime import datetime
+    from email.mime.text import MIMEText
+    from importlib.metadata import version, PackageNotFoundError
+
+    try:
+        pkg_version = version("dwh-facturacion")
+    except PackageNotFoundError:
+        pkg_version = "desconocida (paquete no instalado via pip)"
+
+    body = (
+        f"Health check — DWH Facturación\n"
+        f"{'─' * 40}\n"
+        f"Versión instalada : {pkg_version}\n"
+        f"Fecha/hora        : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"Estado            : OK\n"
+    )
+
+    msg = MIMEText(body)
+    msg["Subject"] = f"[DWH Facturación] Health check OK — v{pkg_version}"
+    msg["From"] = os.environ["SMTP_USER"]
+    msg["To"] = to_email
+
+    with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ["SMTP_PORT"])) as server:
+        server.starttls()
+        server.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
+        server.sendmail(os.environ["SMTP_USER"], to_email, msg.as_string())
