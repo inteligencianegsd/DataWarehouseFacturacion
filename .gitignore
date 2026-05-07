@@ -2,7 +2,7 @@
 .venv
 # Mac
 .DS_Store
-
+.claude/
 # Entorno virtual
 .venv/
 

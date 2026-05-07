@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dwh-facturacion"
+version = "0.1.0"
+description = "Data Warehouse ETL de Facturación — pipelines Bronze + Features"
+requires-python = ">=3.10"
+dependencies = [
+    "unidecode==1.4.0",
+    "pyyaml==6.0.2",
+]
+
+[project.optional-dependencies]
+# Instalar sólo si se usan las transformaciones dbt dentro de Airflow
+airflow = [
+    "astronomer-cosmos",
+    "dbt-core",
+    "dbt-postgres",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dwh_facturacion*"]
+
+[tool.setuptools.package-data]
+"dwh_facturacion" = [
+    "include/sql/initialization/*.sql",
+    "include/sql/incremental/*.sql",
+    "include/archivos/*.csv",
+]
