@@ -40,11 +40,23 @@ Ejemplo de uso en un DAG de Airflow:
         )
 """
 
+import os
 from typing import Literal
 
 from dwh_facturacion.config.app_config import AppConfig
 from dwh_facturacion.config.logger_config import setup_logger
 from dwh_facturacion.utils.RunMode import RunMode
+
+from dwh_facturacion.pipelines.bronze.bronze_operatividad_pipeline import BronzeOperatividadPipeline
+from dwh_facturacion.pipelines.bronze.bronze_facturas_pipeline import BronzeFacturasPipeline
+from dwh_facturacion.pipelines.bronze.bronze_clientes_pipeline import BronzeClientesPipeline
+from dwh_facturacion.pipelines.features.features_facturas_exluidas_pipeline import FeaturesFacturasExcluidasPipelines
+from dwh_facturacion.pipelines.bronze.bronze_vendedores_pipeline import BronzeVendedoresPipeline
+from dwh_facturacion.pipelines.bronze.bronze_tranfac_pipeline import BronzeTranfacPipeline
+from dwh_facturacion.pipelines.bronze.bronze_articulos_pipeline import BronzeArticulosPipeline
+from dwh_facturacion.pipelines.bronze.bronze_codigos_pipeline import BronzeCodigosPipeline
+
+from airflow.hooks.base import BaseHook
 
 import smtplib
 from datetime import datetime
@@ -65,6 +77,40 @@ def _get_app_config(db_alias: DBAliasType, run_mode: RunMode) -> AppConfig:
 
 
 # ---------------------------------------------------------------------------
+# Configuración de conexiones desde Airflow UI
+# ---------------------------------------------------------------------------
+
+def configure_from_airflow_connections(conn_map: dict[str, str]) -> None:
+    """Extrae conexiones de la UI de Airflow y las inyecta como env vars
+    para que get_db_config() las encuentre al momento de correr cada task.
+
+    Args:
+        conn_map: dict que mapea prefijo → conn_id de Airflow.
+
+    Ejemplo en el DAG:
+        configure_from_airflow_connections({
+            "FENIX":   "fenix_db",
+            "CAMUNDA": "camunda_db",
+            "QUANTA":  "quanta_db",
+        })
+    """
+    
+
+    for prefix, conn_id in conn_map.items():
+        conn = BaseHook.get_connection(conn_id)
+        extra = conn.extra_dejson or {}
+
+        os.environ[f"DB_HOST_{prefix}"]     = conn.host or ""
+        os.environ[f"DB_PORT_{prefix}"]     = str(conn.port or "")
+        os.environ[f"DB_USER_{prefix}"]     = conn.login or ""
+        os.environ[f"DB_PASSWORD_{prefix}"] = conn.password or ""
+        os.environ[f"DB_NAME_{prefix}"]     = conn.schema or ""
+        os.environ[f"DB_ENGINE_{prefix}"]   = extra.get("engine", "")
+        os.environ[f"DB_DRIVER_{prefix}"]   = extra.get("driver", "")
+        os.environ[f"DB_ODBC_DRIVER_{prefix}"] = extra.get("odbc_driver", "")
+
+
+# ---------------------------------------------------------------------------
 # Features
 # ---------------------------------------------------------------------------
 
@@ -77,9 +123,6 @@ def run_features_facturas_excluidas(
     - INCREMENTAL: extrae nuevas facturas excluidas desde la base FENIX.
     - INICIAL:     carga desde el archivo CSV de referencia.
     """
-    from dwh_facturacion.pipelines.features.features_facturas_exluidas_pipeline import (
-        FeaturesFacturasExcluidasPipelines,
-    )
     app_config = _get_app_config(db_alias, run_mode)
     FeaturesFacturasExcluidasPipelines(app_config).run()
 
@@ -97,7 +140,6 @@ def run_bronze_facturas(
     - INCREMENTAL: facturas con fecha de emisión posterior a la última cargada.
     - INICIAL:     carga histórica completa desde FENIX.
     """
-    from dwh_facturacion.pipelines.bronze.bronze_facturas_pipeline import BronzeFacturasPipeline
     app_config = _get_app_config(db_alias, run_mode)
     BronzeFacturasPipeline(app_config).run()
 
@@ -111,7 +153,6 @@ def run_bronze_clientes(
     - INCREMENTAL: clientes modificados desde la última carga.
     - INICIAL:     carga completa del catálogo de clientes desde FENIX.
     """
-    from dwh_facturacion.pipelines.bronze.bronze_clientes_pipeline import BronzeClientesPipeline
     app_config = _get_app_config(db_alias, run_mode)
     BronzeClientesPipeline(app_config).run()
 
@@ -125,7 +166,6 @@ def run_bronze_vendedores(
     - INCREMENTAL: vendedores modificados desde la última carga.
     - INICIAL:     carga completa del catálogo de vendedores desde FENIX.
     """
-    from dwh_facturacion.pipelines.bronze.bronze_vendedores_pipeline import BronzeVendedoresPipeline
     app_config = _get_app_config(db_alias, run_mode)
     BronzeVendedoresPipeline(app_config).run()
 
@@ -139,7 +179,6 @@ def run_bronze_tranfac(
     - INCREMENTAL: transacciones nuevas desde la última carga.
     - INICIAL:     carga histórica completa desde FENIX.
     """
-    from dwh_facturacion.pipelines.bronze.bronze_tranfac_pipeline import BronzeTranfacPipeline
     app_config = _get_app_config(db_alias, run_mode)
     BronzeTranfacPipeline(app_config).run()
 
@@ -153,7 +192,6 @@ def run_bronze_articulos(
     - INCREMENTAL: artículos modificados desde la última carga.
     - INICIAL:     carga completa del catálogo de artículos desde FENIX.
     """
-    from dwh_facturacion.pipelines.bronze.bronze_articulos_pipeline import BronzeArticulosPipeline
     app_config = _get_app_config(db_alias, run_mode)
     BronzeArticulosPipeline(app_config).run()
 
@@ -169,7 +207,6 @@ def run_bronze_codigos(
     El parámetro run_mode se acepta por consistencia de firma pero no altera
     el comportamiento de este pipeline.
     """
-    from dwh_facturacion.pipelines.bronze.bronze_codigos_pipeline import BronzeCodigosPipeline
     app_config = _get_app_config(db_alias, run_mode)
     BronzeCodigosPipeline(app_config).run()
 
@@ -187,7 +224,7 @@ def run_bronze_operatividad(
     - INCREMENTAL: registros de operatividad desde la última fecha cargada.
     - INICIAL:     carga histórica completa desde CAMUNDA.
     """
-    from dwh_facturacion.pipelines.bronze.bronze_operatividad_pipeline import BronzeOperatividadPipeline
+
     app_config = _get_app_config(db_alias, run_mode)
     BronzeOperatividadPipeline(app_config).run()
 

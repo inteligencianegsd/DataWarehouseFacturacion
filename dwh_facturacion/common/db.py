@@ -1,44 +1,39 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-
 from dwh_facturacion.common.connection import build_connection_url
 from dwh_facturacion.config.setting import get_db_config
 
-# Configuracion para las Bases de Datos
-DB_CONFIG_PORTAL = get_db_config("PORTAL")
-DB_CONFIG_LOCAL = get_db_config("LOCAL")
-DB_CONFIG_FENIX = get_db_config("FENIX")
-DB_CONFIG_CAMUNDA = get_db_config("CAMUNDA")
-DB_CONFIG_QUANTA = get_db_config("QUANTA")
-DB_CONFIG_LATINUM = get_db_config("LATINUM")
-DB_CONFIG_PORTAL_GK = get_db_config("PORTAL_GK")
+_engine_cache: dict = {}
+_session_cache: dict = {}
+
+_CONNECT_ARGS = {
+    "QUANTA": {"connect_args": {"options": "-c TimeZone=America/Guayaquil"}},
+}
 
 
-# Engine y session para la base principal
+def get_engine(prefix: str):
+    if prefix not in _engine_cache:
+        config = get_db_config(prefix)
+        url = build_connection_url(config)
+        extra = _CONNECT_ARGS.get(prefix, {})
+        _engine_cache[prefix] = create_engine(url, echo=False, hide_parameters=True, **extra)
+    return _engine_cache[prefix]
 
-engine = create_engine(build_connection_url(DB_CONFIG_LOCAL), echo=False, hide_parameters=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Engine y session para la base de datos del portal
-engine_portal = create_engine(build_connection_url(DB_CONFIG_PORTAL), echo=False, future=True, hide_parameters=True)
-SessionPortal = sessionmaker(autocommit=False, autoflush=False, bind=engine_portal)
+def get_session_maker(prefix: str):
+    if prefix not in _session_cache:
+        _session_cache[prefix] = sessionmaker(
+            autocommit=False, autoflush=False, bind=get_engine(prefix)
+        )
+    return _session_cache[prefix]
 
-engine_portal_gk = create_engine(build_connection_url(DB_CONFIG_PORTAL_GK), echo=False, future=True, hide_parameters=True)
-SessionPortalGk = sessionmaker(autocommit=False, autoflush=False, bind=engine_portal_gk)
 
-# Engine y session para la base de datos del Fenix
-engine_fenix = create_engine(build_connection_url(DB_CONFIG_FENIX), echo=False, hide_parameters=True)
-SessionFenix = sessionmaker(autocommit=False, autoflush=False, bind=engine_fenix)
-
-# Engine y session para la base de datos del CAMUNDA
-engine_camunda = create_engine(build_connection_url(DB_CONFIG_CAMUNDA), echo=False, hide_parameters=True)
-SessionCamunda = sessionmaker(autocommit=False, autoflush=False, bind=engine_camunda)
-
-# Engine y session para la base de datos del LATINUM
-engine_latinum = create_engine(build_connection_url(DB_CONFIG_LATINUM), echo=False, hide_parameters=True)
-SessionLatinum = sessionmaker(autocommit=False, autoflush=False, bind=engine_latinum)
-
-# Engine y session para la base de datos del QUANTA
-engine_quanta = create_engine(build_connection_url(DB_CONFIG_QUANTA), echo=False, hide_parameters=True, connect_args={"options": "-c TimeZone=America/Guayaquil"})
-SessionQuanta = sessionmaker(autocommit=False, autoflush=False, bind=engine_quanta)
+# Aliases para compatibilidad con session_manager.py
+def SessionLocal():   return get_session_maker("LOCAL")()
+def SessionPortal():  return get_session_maker("PORTAL")()
+def SessionPortalGk(): return get_session_maker("PORTAL_GK")()
+def SessionFenix():   return get_session_maker("FENIX")()
+def SessionCamunda(): return get_session_maker("CAMUNDA")()
+def SessionLatinum(): return get_session_maker("LATINUM")()
+def SessionQuanta():  return get_session_maker("QUANTA")()
