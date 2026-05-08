@@ -68,11 +68,31 @@ DBAliasType = Literal["QUANTA", "LOCAL"]
 _LOGGER_INITIALIZED = False
 
 
+_CONN_MAP: dict[str, str] = {}
+
+
+def set_conn_map(conn_map: dict[str, str]) -> None:
+    """Define el mapeo prefijo → conn_id de Airflow una sola vez a nivel de módulo.
+
+    Llamar esto al inicio del DAG (fuera de cualquier task):
+
+        set_conn_map({
+            "FENIX":   "fenix_db",
+            "CAMUNDA": "camunda_db",
+            "QUANTA":  "quanta_db",
+        })
+    """
+    global _CONN_MAP
+    _CONN_MAP = conn_map
+
+
 def _get_app_config(db_alias: DBAliasType, run_mode: RunMode) -> AppConfig:
     global _LOGGER_INITIALIZED
     if not _LOGGER_INITIALIZED:
         setup_logger()
         _LOGGER_INITIALIZED = True
+    if _CONN_MAP:
+        configure_from_airflow_connections(_CONN_MAP)
     return AppConfig(db_alias=db_alias, run_mode=run_mode)
 
 
