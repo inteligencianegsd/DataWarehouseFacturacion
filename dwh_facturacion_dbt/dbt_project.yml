@@ -93,12 +93,6 @@ seeds:
         codigo_documento: varchar(20)
         motivo: varchar(255)
 
-    equivalencia_comentario_codigo:
-      +schema: features
-      +column_types:
-        codigo_articulo: varchar(30)
-        codigo_comentario_3: varchar(30)
-
     reasignacion_grupo_vendedor:
       +schema: features
       +column_types:

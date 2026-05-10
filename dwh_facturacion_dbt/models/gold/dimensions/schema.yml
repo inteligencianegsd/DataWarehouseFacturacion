@@ -279,7 +279,7 @@ models:
         tests:
           - relationships:
               arguments:
-                to: source("features", "sucursales")
+                to: source("features_prev", "sucursales")
                 field: id_sucursal
               config:
                 severity: warn
