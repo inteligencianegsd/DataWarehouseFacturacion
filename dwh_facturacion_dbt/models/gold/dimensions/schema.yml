@@ -277,6 +277,9 @@ models:
         description: >
           Identificador de la sucursal donde se realizó la venta.
         tests:
+          - not_null:
+              config:
+                severity: warn
           - relationships:
               arguments:
                 to: source("features_prev", "sucursales")
