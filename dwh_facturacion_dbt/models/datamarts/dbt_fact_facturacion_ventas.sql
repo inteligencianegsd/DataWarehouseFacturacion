@@ -53,6 +53,7 @@ fact_pre AS (
     SELECT
         ff.id_factura,
         ff.fecha_emision,
+        ff.fecha_emision_fenix,
         ff.id_cliente,
         ff.id_sucursal,
         ff.id_codigo,
@@ -77,6 +78,7 @@ stg_fact_facturacion AS (
     SELECT
         id_factura,
         fecha_emision,
+        fecha_emision_fenix,
         id_cliente,
         id_sucursal,
         id_codigo,
@@ -90,6 +92,7 @@ stg_fact_facturacion AS (
     GROUP BY
         id_factura,
         fecha_emision,
+        fecha_emision_fenix,
         id_cliente,
         id_vendedor,
         id_sucursal,

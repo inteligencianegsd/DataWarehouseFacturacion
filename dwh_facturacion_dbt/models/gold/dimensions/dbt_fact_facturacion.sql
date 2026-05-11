@@ -48,6 +48,7 @@ facturas_agentes AS (
 stg_fact_facturacion AS (
     SELECT
         df_0.id_factura,
+        f_0.fecha_emision as fecha_emision_fenix,
         -- Desplaza un mes atrás si la factura está en el seed
         CASE
             WHEN rpf_0.numero_factura IS NOT NULL
@@ -154,6 +155,7 @@ stg_fact_subtotal AS (
         cantidad_articulos,
         valor_unitario,
         porcentaje_descuento,
+        fecha_emision_fenix,
         case
             when  diferencia <> 0 then ROUND(subtotal_articulo + ajuste_centavos, 2)
             else subtotal_articulo
@@ -189,6 +191,7 @@ SELECT
     grupo_vendedor,
     descuento_articulo,
     subtotal_articulo,
-    total_iva
+    total_iva,
+    fecha_emision_fenix
 
 FROM stg_fact_iva_articulo
