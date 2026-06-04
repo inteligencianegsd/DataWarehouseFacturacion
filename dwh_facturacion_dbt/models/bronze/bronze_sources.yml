@@ -161,23 +161,32 @@ sources:
           - name: creation_date
             description: "Metadato: Fecha y hora de inserción en la capa Bronze."
           - name: numfac
-            description: "Número de la factura. Actúa como identificador lógico del documento."
+            description: |
+              Identificador único del documento en el sistema Fenix.
+
+              **Regla de negocio:** `numfac` es el identificador único por documento. Cada factura y cada nota de crédito tienen un `numfac` distinto. Si el valor comienza con `'DV'`, el documento es una nota de crédito (anulación).
             tests:
               - unique
           - name: numdoc
-            description: "Número de documento asociado (puede ser un número fiscal o interno)."
+            description: |
+              Identificador único del proceso de facturación.
+
+              **Regla de negocio:** Una factura y su nota de crédito (anulación) comparten el mismo `numdoc`. Si existe una nota de crédito asociada a una factura, ambas tienen el mismo valor en este campo.
           - name: cliente
             description: "Código del cliente al que se emite la factura (Clave foránea hacia fenix_clientes.codcli)."
           - name: numser
             description: "Número de serie de la facturación."
-          - name: secuencia
-            description: "Secuencia correlativa del documento."
+          - name: pedido
+            description: "Secuencia correlativa del documento. Se concatena con `numser` para construir el número de factura visible: `CONCAT(numser, pedido)`. Ejemplo de resultado: `'001-001-000000001'`."
           - name: comen1
-            description: "Línea de comentario o campo de observación 1 del documento."
+            description: "Primer campo de comentario o campo de observación del documento."
           - name: comen2
-            description: "Línea de comentario o campo de observación 2 del documento."
+            description: "Segundo campo de comentario del documento. Contiene el código de descuento en el formato `'CODDESCUENTO <codigo>'`."
           - name: comen3
-            description: "Línea de comentario o campo de observación 3 del documento."
+            description: |
+              Tercer campo de comentario del documento.
+
+              En ventas automatizadas contiene el código del catálogo de productos (`fenix_codigos`). También puede contener indicadores de clasificación de venta: `'COMERCIAL'`, `'F.E.F.A.V.'` (firmas emitidas a Alianza del Valle), o texto con `'TERCER'`, `'DISTRIBUI'`, `'AGENT'`.
           - name: subtotal
             description: "Monto subtotal de la factura antes de impuestos y descuentos."
           - name: desc0
@@ -219,7 +228,9 @@ sources:
           - name: precio
             description: "Precio unitario del artículo."
           - name: desct
-            description: "Descuento específico aplicado a esta línea de transacción."
+            description: "Porcentaje de descuento específico aplicado a esta línea de transacción."
+          - name: iva
+            description: "Porcentaje de IVA aplicado a la línea de factura. Valores posibles: `0` (factura eliminadas las cuales deben ser exluidas), `12` (tasa histórica hasta 2024), `15` (tasa vigente desde 2024)."
 
       # ==========================================
       # TABLA: ARTÍCULOS
@@ -311,16 +322,94 @@ sources:
       # ==========================================
 
       - name: camunda_operatividad
-        description: >
-          Camunda Opeartividad Documentacion aun no inicializada
+        description: |
+          Tabla de operatividad del sistema Camunda que registra el ciclo de vida de los trámites
+          de firma digital asociados a la emisión de facturas. Contiene información del solicitante,
+          el producto, el canal de origen, y los estados de aprobación de cada trámite procesado.
+          
+          Dentro de esta tabla se cargan los siguientes registros:
+          - De la base de Portales SUBCA se cargan los registros de todas las firmas en estado de emision o
+          aprobacion
+          - De la base de Portal CAMUNDA se cargan los registros de las facturas asociadas a un tramite finalizado
+          (Emitido o Aprobado)
+          - De la base de Portal CAMUNDA se cargan los registros asociadas a facturas anuladas con la finalidad de 
+          dar mayor trazabilidad en cuestion de identificar si eran una emision por primera vez o renovacion
+        columns:
+          - name: id_operatividad
+            description: Identificador único del registro de operatividad del trámite.
+
+          - name: creation_date
+            description: Fecha y hora en que se creó el registro en la tabla.
+
+          - name: update_date
+            description: Fecha y hora de la última actualización del registro.
+
+          - name: id_tramite
+            description: Identificador del trámite de firma digital asociado al proceso en Camunda/Portal SUBCA.
+
+          - name: origen
+            description: Canal o sistema desde donde se originó el trámite (web, presencial, API, etc.).
+
+          - name: serial_firma
+            description: Número de serie o identificador único del certificado de firma digital utilizado.
+
+          - name: cedula
+            description: Número de cédula de identidad del solicitante o titular del trámite.
+
+          - name: fecha_aprobacion
+            description: Fecha y hora en que el trámite fue aprobado por el sistema o por un validador.
+
+          - name: factura
+            description: Número o referencia de la factura asociada al trámite de firma digital.
+
+          - name: ruc
+            description: Registro Único de Contribuyente del cliente o empresa vinculada al trámite.
+
+          - name: tipo_firma
+            description: Tipo de firma digital empleada en el trámite (token físico, archivo P12, nube, etc.).
+
+          - name: fecha_inicio_tramite
+            description: Fecha y hora en que se inició formalmente el trámite en el sistema.
+
+          - name: ruc_aux
+            description: RUC auxiliar o secundario asociado al trámite, utilizado cuando interviene una empresa diferente al titular.
+
+          - name: medio
+            description: Medio o canal a través del cual se realizó el trámite (web, app móvil, presencial, etc.).
+
+          - name: sf_control
+            description: Código o indicador de control del sistema de facturación para validar la integridad del trámite.
+
+          - name: producto
+            description: Producto o servicio de firma digital contratado y asociado al trámite.
+
+          - name: grupo_vendedor
+            description: Grupo comercial o equipo de ventas responsable de gestionar el trámite.
+
+          - name: estado
+            description: Estado actual del trámite dentro del flujo de Camunda (aprobado, pendiente, rechazado, en proceso, etc.).
+
+          - name: fecha_factura
+            description: Fecha de emisión de la factura vinculada al trámite de firma digital.
 
   - name: features_by_code
     schema: analytics_features
     tables:
       - name: facturas_excluidas
+        description: >
+          Tabla que contiene las facturas excluidas del análisis de facturación regular. Agrupa dos tipos de registros:
+          facturas de venta de activos fijos, y facturas anuladas dentro del sistema Fenix. Los registros correspondientes a firmas anuladas
+          se incorporan de manera automática en cada período de carga para el caso donde el total_iva es igual a cero.
         columns:
-          - name: codigo_documento
+          - name: codigo_factura
+            description: Código o número identificador de la factura excluida en el sistema Fenix.
+
           - name: motivo
+            description: Razón por la cual la factura fue excluida (venta de activo, firma anulada, etc.).
+
           - name: creation_date
+            description: Fecha y hora en que se registró la exclusión de la factura en esta tabla.
+
           - name: update_date
+            description: Fecha y hora de la última modificación del registro de exclusión.
 

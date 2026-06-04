@@ -8,6 +8,7 @@ models:
       Cada registro representa un día calendario único y contiene diferentes atributos
       que permiten analizar la información por año, mes, trimestre o día.
 
+      Rango: 2015-01-01 a 2030-12-31. Generada con el macro `dbt_utils.date_spine`.
     columns:
       - name: date
         description: "Fecha del calendario que identifica de forma única cada registro en la dimensión de fechas."
@@ -31,19 +32,19 @@ models:
         description: "Nombre del día de la semana correspondiente a la fecha."
 
       - name: is_weekend
-        description: "Indica si la fecha corresponde a fin de semana (TRUE para sábado o domingo, FALSE para días laborables)."
+        description: "Indica si la fecha corresponde a fin de semana (`TRUE` para sábado o domingo, `FALSE` para días laborables)."
+
 
   - name: dbt_dim_vendedores
     description: |
       Dimensión de vendedores construida a partir de la información del sistema Fenix.
       Cada registro representa un vendedor único asociado a las transacciones de venta.
-      
+
       La tabla utiliza una clave surrogate generada mediante una secuencia para
       facilitar las relaciones con las tablas de hechos del Data Warehouse.
-
     columns:
       - name: id_vendedor
-        description: "Clave sustituta (surrogate key) de la dimensión de vendedores generada mediante una secuencia en el Data Warehouse."
+        description: "Clave sustituta (surrogate key) de la dimensión de vendedores, generada mediante secuencia en el Data Warehouse."
         tests:
           - unique:
               config:
@@ -65,18 +66,20 @@ models:
       - name: nombre_vendedor
         description: "Nombre del vendedor registrado en el sistema Fenix."
 
+
   - name: dbt_dim_articulos
     description: |
-      Dimensión de artículos construida a partir de la información proveniente del
-      sistema Fenix. Cada registro representa un artículo único utilizado en las
-      transacciones de facturación.
-      
-      La tabla utiliza una clave surrogate generada mediante una secuencia para 
-      facilitar las relaciones con las tablas de hechos del Data Warehouse.
+      Dimensión de artículos construida a partir del catálogo del sistema Fenix. Cada registro
+      representa un artículo único utilizado en las transacciones de facturación.
 
+      Solo se incluyen artículos que aparecen en al menos una línea de factura (`fenix_tranfac`)
+      o cuyo código sigue el patrón `'SF.MAN%'` (artículos manuales de Sistema de Facturación).
+
+      La tabla utiliza una clave surrogate generada mediante una secuencia para facilitar
+      las relaciones con las tablas de hechos del Data Warehouse.
     columns:
       - name: id_articulo
-        description: "Clave sustituta (surrogate key) de la dimensión de artículos generada mediante una secuencia en el Data Warehouse."
+        description: "Clave sustituta (surrogate key) de la dimensión de artículos, generada mediante secuencia en el Data Warehouse."
         tests:
           - unique:
               config:
@@ -96,32 +99,70 @@ models:
                 severity: warn
 
       - name: nombre_articulo
-        description: "Nombre o descripción del artículo registrado en el sistema Fenix."
+        description: "Nombre o descripción principal del artículo."
 
       - name: vigencia
-        description: "Periodo de vigencia asociado al artículo."
+        description: "Período de vigencia del artículo (ej. `'12 MESES'`, `'2 ANOS'`). Extraído del nombre mediante regex."
 
       - name: familia
-        description: "Categoría o familia a la que pertenece el artículo."
+        description: |
+          Categoría o familia del artículo. Posibles valores: `'FIRMAS ELECTRONICAS'`,
+          `'SISTEMA DE FACTURACION'`, `'LICENCIAS'`, `'UPGRADE'`, `'PUNTO DE EMISION'`, entre otros.
 
       - name: tipo_plan
-        description: "Tipo de plan asociado al artículo (por ejemplo: tipos de planes de facturacion)."
+        description: |
+          Tier del plan comercial del artículo, aplicable a la familia `'SISTEMA DE FACTURACION'`.
+
+          Valores: `'PLAN MINI'`, `'PLAN BASICO'`, `'PLAN ESENCIAL'`, `'PLAN ESTANDAR'`, `'PLAN PREMIUM'`.
+
+      - name: verificacion_vendedor
+        description: |
+          Indica si el artículo requiere validación adicional del vendedor para clasificarse como
+          venta COMERCIAL.
+
+          `TRUE`: se requiere que el vendedor esté activo en el seed `vendedores_comercial` dentro
+          del rango de fechas de emisión y que la factura no sea una renovación (`comentario_2`
+          no contiene `'RENOVACION'`).
+
+          `FALSE` o `NULL`: el artículo se clasifica como COMERCIAL sin validar el vendedor.
+
+          Proviene del seed `articulos_comercial`.
+
+      - name: is_codigo_comercial
+        description: |
+          Indica si el artículo está marcado como artículo de venta comercial.
+
+          `TRUE` si el artículo aparece en el seed `articulos_comercial`; `FALSE` en caso contrario.
+
+          Los artículos con `is_codigo_comercial = TRUE` activan la lógica de clasificación del
+          grupo vendedor como `'COMERCIAL'` en la tabla de hechos.
+
+      - name: concepto
+        description: |
+          Subtipo o clasificación adicional del artículo dentro de su familia. Distingue variantes
+          de un mismo producto (ej. con o sin firma electrónica incorporada para artículos SF).
+
+          Se ingresa manualmente en el seed `fenix_articulos_corregidos`. Se usa en el datamart de
+          ventas para agrupar artículos SF por tipo de producto.
+
 
   - name: dbt_dim_facturas
     description: |
-      Dimensión de facturas generada a partir de la información del sistema Fenix.
-      Cada registro representa una factura única identificada por su código de factura.
+      Dimensión de facturas generada a partir del sistema Fenix. Cada registro representa una
+      factura única identificada por su `codigo_factura`.
 
-      Esta tabla también identifica el estado de la factura. Si existe una nota de crédito
-      asociada al mismo código de documento, la factura se marca como "ANULADO".
-      En caso contrario, se considera "FACTURADO".
-      
-      La tabla utiliza una clave surrogate generada mediante una secuencia para 
-      facilitar las relaciones con las tablas de hechos del Data Warehouse.
+      Las notas de crédito se excluyen de esta dimensión (solo se incluyen facturas originales).
+      Las facturas de venta de activos fijos y otras exclusiones se filtran mediante la tabla
+      `facturas_excluidas`.
 
+      El estado de la factura se determina según la existencia de una nota de crédito con el
+      mismo `codigo_documento`.
+
+      La tabla utiliza una clave surrogate generada mediante una secuencia para facilitar
+      las relaciones con las tablas de hechos del Data Warehouse.
     columns:
       - name: id_factura
-        description: "Clave sustituta (surrogate key) de la dimensión de facturas generada mediante una secuencia en el Data Warehouse."
+        description: "Clave sustituta (surrogate key) de la dimensión de facturas, generada mediante secuencia en el Data Warehouse."
         tests:
           - unique:
               config:
@@ -131,7 +172,11 @@ models:
                 severity: warn
 
       - name: codigo_factura
-        description: "Identificador unico de la factura proveniente del sistema Fenix."
+        description: |
+          Identificador único del documento en el sistema Fenix (`numfac`).
+
+          **Regla de negocio:** Cada documento tiene un `codigo_factura` único. Las notas de
+          crédito (prefijo `'DV'`) están excluidas de esta dimensión.
         tests:
           - unique:
               config:
@@ -141,45 +186,58 @@ models:
                 severity: warn
 
       - name: codigo_documento
-        description: "Código del documento asociado a la factura en el sistema Fenix. Se utiliza para relacionar facturas con notas de crédito."
+        description: |
+          Identificador único del proceso de facturación (`numdoc`).
+
+          **Regla de negocio:** Una factura y su nota de crédito (anulación) comparten el mismo
+          `codigo_documento`. Se usa para relacionar facturas con sus notas de crédito y
+          determinar el `estado_factura`.
 
       - name: numero_factura
-        description: "Número visible de la factura utilizado para identificación operativa."
+        description: "Número de factura completo, legible para el negocio (ej. `'001-001-000000001'`)."
 
       - name: comentario_1
-        description: "Campo de comentario adicional proveniente del sistema Fenix asociado a la factura."
+        description: "Primer campo de comentario de la factura."
 
       - name: comentario_2
-        description: "Segundo campo de comentario registrado en la factura dentro del sistema Fenix."
+        description: "Segundo campo de comentario de la factura. Contiene el código de descuento y puede indicar si es una renovación."
 
       - name: comentario_3
-        description: "Tercer campo de comentario registrado en la factura dentro del sistema Fenix."
+        description: |
+          Tercer campo de comentario de la factura. Contiene el código de producto del catálogo
+          o indicadores de clasificación de venta (`'COMERCIAL'`, `'F.E.F.A.V.'`, etc.).
 
       - name: codigo_descuento
-        description: "Código de descuento aplicado a la factura extraida de los comentarios."
+        description: "Código de descuento extraído del `comentario_2`. Valor `'SIN CODIGO DE DESCUENTO'` si no aplica."
 
       - name: estado_factura
         description: |
-          Estado de la factura determinado a partir de la existencia de una nota de crédito.
-          - FACTURADO: no existe una nota de crédito asociada.
-          - ANULADO: existe una nota de crédito asociada al mismo código de documento.
-          Cabe recalcar que en caso de una nota credito, tanto la factura como la nota de credito que compartan
-          el mismo numero_documento seran marcados cmo ANULADO
+          Estado de la factura determinado por la existencia de una nota de crédito asociada.
 
+          - `'FACTURADO'`: no existe una nota de crédito con el mismo `codigo_documento`.
+          - `'ANULADO'`: existe una nota de crédito con el mismo `codigo_documento`. Tanto la
+            factura original como la nota de crédito son marcadas como `'ANULADO'`.
+
+      - name: tipo_venta
+        description: |
+          Clasificación de la venta según si es una emisión nueva o una renovación.
+
+          - `'NUEVO'`: primera aprobación del producto para el solicitante (según Camunda).
+          - `'RENOVACION'`: aprobaciones subsiguientes del mismo producto.
+          - Respaldo desde `dbt_dim_codigos.concepto_2` cuando Camunda no tiene información.
+          - `NULL` cuando ninguna fuente provee el dato.
 
 
   - name: dbt_dim_clientes
     description: |
-      Tabla de dimensión que contiene la información de clientes proveniente del
-      sistema Fenix. Cada registro representa un cliente único identificado por
-      su código. 
-      
-      La tabla utiliza una clave surrogate generada mediante una secuencia para 
-      facilitar las relaciones con las tablas de hechos del Data Warehouse.
+      Dimensión de clientes construida a partir del sistema Fenix. Cada registro representa
+      un cliente único identificado por su código.
 
+      La tabla utiliza una clave surrogate generada mediante una secuencia para facilitar
+      las relaciones con las tablas de hechos del Data Warehouse.
     columns:
       - name: id_cliente
-        description: "Clave sustituta (surrogate key) de la dimensión de facturas generada mediante una secuencia en el Data Warehouse."
+        description: "Clave sustituta (surrogate key) de la dimensión de clientes, generada mediante secuencia en el Data Warehouse."
         tests:
           - unique:
               config:
@@ -189,8 +247,7 @@ models:
                 severity: warn
 
       - name: codigo_cliente
-        description: >
-          Código identificador del cliente en el sistema transaccional Fenix.
+        description: "Código identificador del cliente en el sistema transaccional Fenix."
         tests:
           - unique:
               config:
@@ -200,47 +257,136 @@ models:
                 severity: warn
 
       - name: nombre_cliente
-        description: >
-          Nombre o razón social del cliente registrado en el sistema Fenix.
+        description: "Nombre o razón social del cliente registrado en el sistema Fenix."
 
       - name: cif
-        description: >
-          Número de identificación fiscal del cliente (CIF), utilizado para
-          emitir la factura.
-      
+        description: "Número de identificación fiscal del cliente (RUC, cédula u otro documento)."
 
+      - name: is_same_corporate_group
+        description: |
+          Indica si el cliente pertenece al grupo corporativo de Security Data.
+
+          `TRUE` para los CIFs: `0991327371001` (Telconet), `1792186927001` (GK), `1792496136001` (Systor).
+
+          Se usa en la tabla de hechos para clasificar ventas de la familia `'LICENCIAS'` a estos
+          clientes bajo el grupo `'LICENCIAS TELCONET'`.
+
+
+  - name: dbt_dim_codigos
+    description: |
+      Dimensión del catálogo de códigos de productos proveniente de Fenix. Contiene los atributos
+      descriptivos y de clasificación de cada código que aparece en el `comentario_3` de las facturas.
+
+      El prefijo `'VIGENCIA '` es eliminado del campo `vigencia` en esta capa.
+
+      Se aplica `DISTINCT` para evitar duplicados provenientes de la capa Silver.
+    columns:
+      - name: id_codigo
+        description: "Identificador único del código de producto, proveniente directamente del sistema origen."
+        tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: warn
+
+      - name: codigo
+        description: |
+          Código del producto, equivalente al valor que aparece en el campo `comentario_3` de las facturas.
+
+          Valores especiales usados internamente:
+          - `'MANUAL.FACT.MANUAL'`: código por defecto cuando la factura no tiene código de catálogo.
+          - `'CONVE.FACT.MANUAL'`: código asignado a facturas de convenio (descuento `'ALIANZA'`).
+        tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: warn
+
+      - name: codigo_nombre
+        description: "Nombre o descripción del producto asociado al código."
+
+      - name: familia_producto
+        description: "Familia o categoría del producto (ej. `'FIRMAS ELECTRONICAS'`, `'SISTEMA DE FACTURACION'`)."
+
+      - name: atencion
+        description: "Tipo de canal o modalidad de atención del producto. El valor `'CONVENIOS'` filtra productos de convenios institucionales en los datamarts."
+
+      - name: venta_dirigida
+        description: "Segmento de cliente objetivo al que se dirige la venta del producto."
+
+      - name: concepto_1
+        description: "Primera clasificación adicional del producto. Se usa en el datamart de ventas para mapear artículos SF al `concepto` de la dimensión de artículos."
+
+      - name: concepto_2
+        description: "Segunda clasificación adicional del producto. Se usa como respaldo del `tipo_venta` en la dimensión de facturas cuando Camunda no provee esa información."
+
+      - name: plan
+        description: "Plan comercial del producto. Se usa en el datamart de ventas para cruzar con el `tipo_plan` de artículos SF."
+
+      - name: vigencia
+        description: "Período de vigencia del producto (con el prefijo `'VIGENCIA '` ya eliminado)."
 
 
   - name: dbt_fact_facturacion
     description: |
-      Tabla de hechos con granularidad a nivel de artículo. Cada registro representa la venta
-      de un artículo dentro de una factura.
+      Tabla de hechos central del Data Warehouse con granularidad a nivel de artículo por factura.
+      Cada registro representa la venta de un artículo dentro de una factura.
 
-      Los valores facturados se calculan utilizando el precio registrado para cada artículo
-      en la tabla tranfac. Debido a esto, los totales pueden diferir de los valores de
-      facturación almacenados en la tabla facturas del sistema Fenix.
+      Se excluyen las facturas presentes en `facturas_excluidas` (ventas de activos fijos y otras
+      exclusiones). Las notas de crédito no aparecen directamente pero afectan el `estado_factura`
+      en `dbt_dim_facturas`.
 
+      **Cálculo de montos:**
+      Los valores se calculan a nivel de línea usando los campos de `fenix_tranfac`. Para garantizar
+      que la suma de `subtotal_articulo` por factura sea exactamente igual al total sin IVA de la
+      cabecera, se aplica una lógica de reconciliación de centavos (distribución proporcional de
+      diferencias de redondeo).
+
+      **Asignación de grupo vendedor** (orden de precedencia):
+      1. Reasignación manual (`reasignacion_grupo_vendedor`).
+      2. Distribuidor con indicador de tercero en `comentario_3` (`reasignacion_distribuidores`).
+      3. `'LICENCIAS TELCONET'`: familia `'LICENCIAS'` + cliente del grupo corporativo.
+      4. `'GRUPO TERCEROS'`: `comentario_3` contiene `'TERCER'` + familia FIRMA o SF.
+      5. `'GRUPO DISTRIBUIDORES'`: `comentario_3` contiene `'DISTRIBUI'`.
+      6. `'GRUPO AGENTES'`: factura marcada como de agente o vendedor en `vendedores_agentes`.
+      7. `'GRUPO GEEKTECH'`: cliente con `codigo_cliente = '1792496136'`.
+      8. `'COMERCIAL'`: factura clasificada como comercial por la lógica de `facturas_comercial`.
+      9. `grupo_vendedor_temp` de Camunda (si existe).
+      10. `'GRUPO SECURITY DATA'`: valor por defecto.
     columns:
       - name: id_factura
-        description: >
-          Clave surrogate que identifica de forma única la factura en la
-          dimensión de facturas. Permite relacionar la tabla de hechos con
-          la dimensión de facturas.
+        description: |
+          Clave surrogate que identifica la factura. Permite relacionar la tabla de hechos con
+          `dbt_dim_facturas`.
         tests:
           - not_null:
               config:
                 severity: warn
 
       - name: fecha_emision
-        description: "Fecha en la que fue emitida la factura."
+        description: |
+          Fecha de emisión de la factura utilizada para análisis temporal y metas.
 
-      - name: hora_emision
-        description: "Hora en la que fue emitida la factura."
+          Para facturas en el seed `reasignacion_periodo_fiscal`, la fecha se desplaza un mes
+          atrás para ajustar el período fiscal de cierre. En todos los demás casos es igual a
+          `fecha_emision_fenix`.
+
+      - name: fecha_emision_fenix
+        description: |
+          Fecha de emisión original de la factura tal como fue registrada en el sistema Fenix,
+          sin ajustes de período fiscal.
+
+          Se usa para auditoría y para comparar con `fecha_emision` cuando existe un ajuste
+          por cierre de período.
 
       - name: id_cliente
-        description: >
-          Clave surrogate que identifica al cliente asociado a la factura.
-          Permite relacionar la tabla de hechos con la dimensión de clientes.
+        description: |
+          Clave surrogate del cliente asociado a la factura. Permite relacionar la tabla de
+          hechos con `dbt_dim_clientes`.
         tests:
           - relationships:
               arguments:
@@ -250,9 +396,9 @@ models:
                 severity: warn
 
       - name: id_vendedor
-        description: >
-          Clave surrogate que identifica al vendedor responsable de la venta.
-          Permite relacionar la tabla de hechos con la dimensión de vendedores.
+        description: |
+          Clave surrogate del vendedor responsable de la venta. Permite relacionar la tabla
+          de hechos con `dbt_dim_vendedores`.
         tests:
           - relationships:
               arguments:
@@ -262,9 +408,9 @@ models:
                 severity: warn
 
       - name: id_articulo
-        description: >
-          Clave surrogate que identifica el artículo vendido en la transacción.
-          Permite relacionar la tabla de hechos con la dimensión de artículos.
+        description: |
+          Clave surrogate del artículo vendido en la transacción. Permite relacionar la tabla
+          de hechos con `dbt_dim_articulos`.
         tests:
           - relationships:
               arguments:
@@ -274,8 +420,9 @@ models:
                 severity: error
 
       - name: id_sucursal
-        description: >
-          Identificador de la sucursal donde se realizó la venta.
+        description: |
+          Identificador de la sucursal donde se realizó la venta. Clave foránea hacia
+          `features_prev.sucursales.id_sucursal`.
         tests:
           - not_null:
               config:
@@ -287,21 +434,56 @@ models:
               config:
                 severity: warn
 
+      - name: id_codigo
+        description: |
+          Clave foránea al catálogo de códigos de producto (`dbt_dim_codigos`).
+
+          Se determina en el siguiente orden de prioridad:
+          1. Cruce directo de `comentario_3` con `dbt_dim_codigos.codigo`.
+          2. `'CONVE.FACT.MANUAL'` para facturas de convenio (descuento `'ALIANZA'`).
+          3. `'MANUAL.FACT.MANUAL'` como valor por defecto cuando no hay código registrado.
+
       - name: cantidad_articulos
-        description: >
-          Cantidad de unidades del artículo incluidas en la línea de la factura.
+        description: "Cantidad de unidades del artículo incluidas en la línea de la factura."
 
       - name: valor_unitario
-        description: >
-          Precio unitario del artículo antes de aplicar descuentos.
+        description: "Precio unitario del artículo antes de aplicar descuentos."
 
       - name: porcentaje_descuento
-        description: >
-          Porcentaje de descuento aplicado al artículo en la línea de la factura.
+        description: "Porcentaje de descuento aplicado al artículo en la línea de la factura."
+
+      - name: porcentaje_iva
+        description: "Porcentaje de IVA aplicado al artículo. Valores posibles: `0`, `12`, `15`."
+
+      - name: grupo_vendedor
+        description: |
+          Grupo comercial asignado a la transacción. Determina la agrupación para reportes de ventas
+          y metas comerciales.
+
+          Valores posibles: `'GRUPO SECURITY DATA'`, `'COMERCIAL'`, `'LICENCIAS TELCONET'`,
+          `'GRUPO TERCEROS'`, `'GRUPO DISTRIBUIDORES'`, `'GRUPO AGENTES'`, `'GRUPO GEEKTECH'`.
+          Ver la descripción del modelo para el orden de precedencia completo.
+
+      - name: descuento_articulo
+        description: |
+          Monto total de descuento aplicado a esta línea de factura.
+
+          Se calcula como: `cantidad_articulos × valor_unitario × porcentaje_descuento / 100`.
 
       - name: subtotal_articulo
         description: |
-          Valor subtotal de la línea de factura después de aplicar el descuento.
-          Se calcula como:
-          
-          cantidad_articulos x valor_unitario x (100 - porcentaje_descuento) / 100
+          Valor subtotal de la línea de factura después de aplicar el descuento, ajustado para
+          garantizar que la suma por factura coincida exactamente con el total sin IVA de la cabecera.
+
+          **Cálculo base:** `cantidad_articulos × valor_unitario × (100 − porcentaje_descuento) / 100`
+
+          **Ajuste de centavos:** Si la suma de subtotales por factura difiere del `total_sin_iva`
+          de la cabecera (diferencias por redondeo), se distribuye la diferencia de forma
+          proporcional entre las líneas según su peso relativo (`subtotal_articulo / suma_subtotales`).
+          El resultado se redondea a 2 decimales.
+
+      - name: total_iva
+        description: |
+          Monto de IVA correspondiente a esta línea de factura.
+
+          Se calcula como: `ROUND(subtotal_articulo × porcentaje_iva / 100, 2)`.

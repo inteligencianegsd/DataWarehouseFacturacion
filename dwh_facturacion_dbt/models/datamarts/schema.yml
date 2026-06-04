@@ -1,0 +1,183 @@
+version: 2
+
+models:
+  - name: dbt_fact_facturacion_ventas
+    description: |
+      Vista del datamart de ventas que normaliza los artículos de Sistema de Facturación (SF) para
+      reportar por tipo de producto en lugar de por código específico de artículo.
+
+      **Problema que resuelve:** Las facturas de SF pueden registrar diferentes códigos de artículo
+      para el mismo tipo de producto (ej. variantes de un plan). Esta vista los consolida bajo un
+      único artículo representativo por combinación de `vigencia`, `familia`, `tipo_plan` y `concepto`,
+      usando el artículo `SF.MAN.*` de menor `id_articulo` como representante.
+
+      Para artículos que no son de la familia `'SISTEMA DE FACTURACION'`, se conserva el artículo original.
+
+      Los montos (`valor_unitario`, `subtotal_articulo`) se suman al nivel de agrupación para reflejar
+      el total por factura y tipo de producto.
+    columns:
+      - name: id_factura
+        description: "Clave surrogate de la factura. Referencia a `dbt_dim_facturas.id_factura`."
+
+      - name: fecha_emision
+        description: "Fecha de emisión ajustada por período fiscal."
+
+      - name: fecha_emision_fenix
+        description: "Fecha de emisión original registrada en Fenix, sin ajustes de período fiscal."
+
+      - name: id_cliente
+        description: "Clave surrogate del cliente. Referencia a `dbt_dim_clientes.id_cliente`."
+
+      - name: id_sucursal
+        description: "Identificador de la sucursal donde se realizó la venta."
+
+      - name: id_codigo
+        description: "Clave foránea al catálogo de códigos de producto. Referencia a `dbt_dim_codigos.id_codigo`."
+
+      - name: id_vendedor
+        description: "Clave surrogate del vendedor. Referencia a `dbt_dim_vendedores.id_vendedor`."
+
+      - name: grupo_vendedor
+        description: "Grupo comercial asignado a la transacción."
+
+      - name: id_articulo
+        description: |
+          Clave surrogate del artículo.
+
+          Para artículos SF: el `id_articulo` del primer artículo `SF.MAN.*` que coincida con la
+          combinación `vigencia / familia / tipo_plan / concepto` de la factura.
+
+          Para artículos que no son SF: el `id_articulo` original de la transacción.
+
+      - name: cantidad_articulos
+        description: "Cantidad de unidades del artículo en la línea de factura."
+
+      - name: valor_unitario
+        description: "Suma del precio unitario de todas las líneas agrupadas por factura y artículo representativo."
+
+      - name: subtotal_articulo
+        description: "Suma del subtotal de todas las líneas agrupadas por factura y artículo representativo."
+
+
+  - name: dbt_fact_facturacion_convenios
+    description: |
+      Vista del datamart de convenios que filtra únicamente las transacciones de productos vendidos
+      bajo convenios institucionales.
+
+      Un convenio es identificado por `dbt_dim_codigos.atencion = 'CONVENIOS'`. Se incluyen tanto
+      facturas vigentes (`FACTURADO`) como anuladas (`ANULADO`).
+
+      Extiende `dbt_fact_facturacion` agregando el campo `total_factura` (subtotal + IVA).
+    columns:
+      - name: id_factura
+        description: "Clave surrogate de la factura. Referencia a `dbt_dim_facturas.id_factura`."
+
+      - name: fecha_emision
+        description: "Fecha de emisión ajustada por período fiscal."
+
+      - name: fecha_emision_fenix
+        description: "Fecha de emisión original registrada en Fenix."
+
+      - name: id_cliente
+        description: "Clave surrogate del cliente. Referencia a `dbt_dim_clientes.id_cliente`."
+
+      - name: id_vendedor
+        description: "Clave surrogate del vendedor. Referencia a `dbt_dim_vendedores.id_vendedor`."
+
+      - name: id_articulo
+        description: "Clave surrogate del artículo. Referencia a `dbt_dim_articulos.id_articulo`."
+
+      - name: id_sucursal
+        description: "Identificador de la sucursal donde se realizó la venta."
+
+      - name: id_codigo
+        description: "Clave foránea al catálogo de códigos de producto. Solo incluye códigos con `atencion = 'CONVENIOS'`."
+
+      - name: cantidad_articulos
+        description: "Cantidad de unidades del artículo en la línea de factura."
+
+      - name: valor_unitario
+        description: "Precio unitario del artículo antes de descuentos."
+
+      - name: porcentaje_descuento
+        description: "Porcentaje de descuento aplicado al artículo."
+
+      - name: porcentaje_iva
+        description: "Porcentaje de IVA aplicado al artículo."
+
+      - name: grupo_vendedor
+        description: "Grupo comercial asignado a la transacción."
+
+      - name: descuento_articulo
+        description: "Monto total de descuento aplicado a la línea."
+
+      - name: subtotal_articulo
+        description: "Subtotal de la línea después de descuentos y ajuste de centavos."
+
+      - name: total_iva
+        description: "Monto de IVA de la línea."
+
+      - name: total_factura
+        description: "Total de la línea incluyendo IVA. Calculado como `subtotal_articulo + total_iva`."
+
+
+  - name: dbt_dim_clientes_convenios
+    description: |
+      Vista que expone los clientes únicos que tienen al menos una factura vigente (`FACTURADO`)
+      de un producto de convenio.
+
+      Hereda todas las columnas de `dbt_dim_clientes` filtrando por `atencion = 'CONVENIOS'`
+      y `estado_factura = 'FACTURADO'`.
+    columns:
+      - name: id_cliente
+        description: "Clave surrogate del cliente."
+
+      - name: codigo_cliente
+        description: "Código identificador del cliente en el sistema Fenix."
+
+      - name: nombre_cliente
+        description: "Nombre o razón social del cliente."
+
+      - name: cif
+        description: "Número de identificación fiscal del cliente."
+
+      - name: is_same_corporate_group
+        description: "Indica si el cliente pertenece al grupo corporativo de Security Data (Telconet, GK, Systor)."
+
+
+  - name: dbt_dim_facturas_convenios
+    description: |
+      Vista que expone las facturas únicas que contienen al menos un artículo de convenio, independientemente
+      de su estado (`FACTURADO` o `ANULADO`).
+
+      Hereda todas las columnas de `dbt_dim_facturas` filtrando por `atencion = 'CONVENIOS'`.
+    columns:
+      - name: id_factura
+        description: "Clave surrogate de la factura."
+
+      - name: codigo_factura
+        description: "Identificador único del documento en el sistema Fenix."
+
+      - name: codigo_documento
+        description: "Identificador del proceso de facturación. Compartido entre una factura y su nota de crédito."
+
+      - name: numero_factura
+        description: "Número de factura completo, legible para el negocio."
+
+      - name: comentario_1
+        description: "Primer campo de comentario de la factura."
+
+      - name: comentario_2
+        description: "Segundo campo de comentario de la factura."
+
+      - name: comentario_3
+        description: "Tercer campo de comentario de la factura (código de producto o indicador de clasificación)."
+
+      - name: codigo_descuento
+        description: "Código de descuento extraído del `comentario_2`."
+
+      - name: estado_factura
+        description: "Estado de la factura: `'FACTURADO'` o `'ANULADO'`."
+
+      - name: tipo_venta
+        description: "Clasificación de la venta: `'NUEVO'` o `'RENOVACION'`."
