@@ -1,0 +1,190 @@
+version: 2
+
+seeds:
+  - name: articulos_comercial
+    description: >
+      Catálogo de artículos asignados al grupo Comercial para su comercialización.
+      Cada registro identifica un artículo que Comercial está habilitado para vender.
+      El campo verificacion_vendedor determina si el artículo exige que el vendedor
+      sea específicamente de Comercial para que la factura sea dirigida a ese grupo,
+      o si cualquier persona pudo haberlo facturado y la factura se envía igualmente a Comercial.
+    columns:
+      - name: codigo_articulo
+        description: Código único del artículo en Fenix.
+        tests:
+          - not_null
+          - unique
+      - name: verificacion_vendedor
+        description: >
+          Indica si se debe validar que el vendedor pertenece al grupo Comercial para
+          dirigir la factura a ese grupo (true), o si independientemente del vendedor
+          la factura se asigna a Comercial (false).
+        tests:
+          - not_null
+
+  - name: fenix_articulos_corregidos
+    description: >
+      Artículos de Fenix con correcciones aplicadas en los campos de familia, tipo_plan
+      y concepto, con el fin de mostrar la información según los criterios solicitados
+      por el negocio. Adicionalmente incluye artículos creados exclusivamente para
+      mapear Sistemas de Facturación que hayan sido emitidos de forma manual, razón
+      por la cual puede haber más códigos de artículos en este seed que en Fenix.
+      En el modelo silver se aplica un FULL OUTER JOIN con los artículos de Fenix,
+      priorizando los campos corregidos de este seed cuando existen.
+    columns:
+      - name: creation_date
+        description: Fecha y hora de creación del registro.
+        tests:
+          - not_null
+      - name: update_date
+        description: Fecha y hora de la última actualización del registro.
+        tests:
+          - not_null
+      - name: codigo
+        description: Código único del artículo. Puede incluir códigos que no existen en Fenix cuando fueron creados para mapear facturación manual.
+        tests:
+          - not_null
+          - unique
+      - name: nombre
+        description: Nombre descriptivo del artículo corregido o creado manualmente.
+        tests:
+          - not_null
+      - name: vigencia
+        description: Período de vigencia del artículo (por ejemplo, 1 ANO, 2 ANOS, 1 MES).
+      - name: familia
+        description: Familia corregida del artículo (por ejemplo, SISTEMA DE FACTURACION, FIRMAS ELECTRONICAS).
+      - name: tipo_plan
+        description: Tipo de plan corregido del artículo (por ejemplo, PLAN PREMIUM, PLAN BASICO).
+      - name: concepto
+        description: Concepto del artículo, indica si incluye firma o no (por ejemplo, CON FIRMA, SIN FIRMA, COMPROBANTES ADICIONALES).
+
+  - name: reasignacion_comercial
+    description: >
+      Facturas que, por razones puntuales y de negocio, deben ser asignadas directamente
+      al grupo Comercial sin pasar por las validaciones estándar de artículo o vendedor.
+      Estas excepciones se gestionan a nivel de código_documento.
+    columns:
+      - name: codigo_documento
+        description: Código del documento de factura que se reasigna a Comercial.
+        tests:
+          - not_null
+          - unique
+      - name: motivo
+        description: Descripción del motivo por el que la factura es reasignada a Comercial.
+        tests:
+          - not_null
+
+  - name: reasignacion_distribuidores
+    description: >
+      Terceros vinculados que cambian su grupo de vendedor al grupo Distribuidores
+      a partir de una fecha determinada. Aplica únicamente a clientes clasificados
+      como terceros vinculados que pasan a operar como distribuidores, incluyendo
+      todas las firmas que ellos emiten. A partir de la fecha_cambio, cualquier
+      factura de ese cliente con comentario de tercero es redirigida al grupo
+      grupo_vendedor_reasignado.
+    columns:
+      - name: codigo_cliente
+        description: Código del cliente en Fenix (tercero vinculado que pasa a ser distribuidor).
+        tests:
+          - not_null
+      - name: nombre_cliente
+        description: Nombre comercial del cliente para identificación rápida del registro.
+      - name: grupo_vendedor_reasignado
+        description: Grupo de vendedor al que se reasigna el cliente a partir de la fecha de cambio (generalmente GRUPO DISTRIBUIDORES).
+        tests:
+          - not_null
+      - name: fecha_cambio
+        description: Fecha a partir de la cual aplica el cambio de grupo. Las facturas con fecha_emision >= fecha_cambio son redirigidas al nuevo grupo.
+        tests:
+          - not_null
+      - name: motivo
+        description: Descripción del motivo del cambio de modalidad de tercero vinculado a distribuidor.
+
+  - name: reasignacion_grupo_vendedor
+    description: >
+      Reasignaciones individuales de facturas a un grupo de vendedor específico,
+      identificadas por código_documento. Se aplica con mayor precedencia que
+      cualquier otra lógica de asignación de grupo, permitiendo corregir
+      manualmente la clasificación de facturas puntuales.
+    columns:
+      - name: codigo_documento
+        description: Código del documento de factura que se reasigna.
+        tests:
+          - not_null
+          - unique
+      - name: grupo_asignado
+        description: Nombre del grupo de vendedor al que se reasigna la factura.
+        tests:
+          - not_null
+      - name: motivo
+        description: Descripción del motivo de la reasignación de grupo.
+
+  - name: reasignacion_islas_temporales
+    description: >
+      Permite reasignar facturas a una sucursal específica en función del número
+      de factura. Se utiliza para corregir la sucursal de facturas que no pudieron
+      ser asignadas correctamente mediante la lógica estándar de puntos de emisión.
+    columns:
+      - name: numero_factura
+        description: Número de factura (serie + pedido) que se reasigna a la sucursal indicada.
+        tests:
+          - not_null
+          - unique
+      - name: id_sucursal
+        description: Identificador de la sucursal a la que se reasigna la factura.
+        tests:
+          - not_null
+
+  - name: reasignacion_periodo_fiscal
+    description: >
+      Facturas cuya fecha de emisión debe ser desplazada un mes hacia atrás por
+      motivos de cierre fiscal. Generalmente corresponde a facturas emitidas en
+      diciembre que deben ser contabilizadas en el período anterior. La lógica
+      en fact_facturacion aplica fecha_emision - 1 mes cuando el número de
+      factura aparece en este seed.
+    columns:
+      - name: numero_factura
+        description: Número de factura cuya fecha de emisión se recorre al mes previo.
+        tests:
+          - not_null
+          - unique
+      - name: motivo
+        description: Descripción del motivo del ajuste de período fiscal.
+
+  - name: vendedores_agentes
+    description: >
+      Códigos de vendedor de Fenix correspondientes a todos los agentes. Cualquier
+      factura emitida por un vendedor registrado en este seed es asignada
+      automáticamente al grupo GRUPO AGENTES, independientemente del artículo o
+      comentario de la factura.
+    columns:
+      - name: agente
+        description: Nombre completo del agente para identificación del registro.
+        tests:
+          - not_null
+      - name: codigo_vendedor
+        description: Código del vendedor en Fenix asociado al agente.
+        tests:
+          - not_null
+          - unique
+
+  - name: vendedores_comercial
+    description: >
+      Códigos de vendedores pertenecientes al grupo Comercial junto con el rango
+      de fechas en que estuvieron activos en ese grupo. Se usa para validar si
+      un vendedor pertenecía a Comercial en el momento de emitir una factura,
+      especialmente cuando verificacion_vendedor es true en articulos_comercial.
+    columns:
+      - name: codigo_vendedor
+        description: Código del vendedor en Fenix que pertenece o perteneció al grupo Comercial.
+        tests:
+          - not_null
+          - unique
+      - name: fecha_inicio
+        description: Fecha a partir de la cual el vendedor es considerado parte del grupo Comercial.
+        tests:
+          - not_null
+      - name: fecha_fin
+        description: Fecha hasta la cual el vendedor es considerado parte del grupo Comercial.
+        tests:
+          - not_null
