@@ -1,6 +1,50 @@
 version: 2
 
 models:
+  - name: dbt_fact_canal_indirecto
+    description: |
+      Vista del datamart de canal indirecto que filtra las transacciones de facturación
+      excluyendo los grupos de vendedores internos (COMERCIAL, GRUPO SECURITY DATA, GRUPO GEEKTECH).
+
+      Extiende `dbt_fact_facturacion` agregando el campo `total_factura` (subtotal + IVA).
+    columns:
+      - name: id_factura
+        description: "Clave surrogate de la factura. Referencia a `dbt_dim_facturas.id_factura`."
+
+      - name: fecha_emision
+        description: "Fecha de emisión ajustada por período fiscal."
+
+      - name: fecha_emision_fenix
+        description: "Fecha de emisión original registrada en Fenix."
+
+      - name: id_cliente
+        description: "Clave surrogate del cliente. Referencia a `dbt_dim_clientes.id_cliente`."
+
+      - name: id_vendedor
+        description: "Clave surrogate del vendedor. Referencia a `dbt_dim_vendedores.id_vendedor`."
+
+      - name: id_articulo
+        description: "Clave surrogate del artículo. Referencia a `dbt_dim_articulos.id_articulo`."
+
+      - name: id_sucursal
+        description: "Identificador de la sucursal donde se realizó la venta."
+
+      - name: id_codigo
+        description: "Clave foránea al catálogo de códigos de producto."
+
+      - name: grupo_vendedor
+        description: "Grupo comercial asignado a la transacción. Excluye COMERCIAL, GRUPO SECURITY DATA y GRUPO GEEKTECH."
+
+      - name: subtotal_articulo
+        description: "Subtotal de la línea después de descuentos."
+
+      - name: total_iva
+        description: "Monto de IVA de la línea."
+
+      - name: total_factura
+        description: "Total de la línea incluyendo IVA. Calculado como `subtotal_articulo + total_iva`."
+
+
   - name: dbt_fact_facturacion_ventas
     description: |
       Vista del datamart de ventas que normaliza los artículos de Sistema de Facturación (SF) para
