@@ -49,6 +49,7 @@ enriched_articulos AS (
             WHEN nombre LIKE 'PUNTO DE EMISION%' THEN 'PUNTO DE EMISION'
             WHEN nombre LIKE '%FIRMA ELEC%' AND vigencia IS NOT NULL THEN 'FIRMAS ELECTRONICAS'
             WHEN aux_tipo_plan IS NOT NULL AND nombre LIKE '%FACT%' THEN 'SISTEMA DE FACTURACION'
+            WHEN aux_familia = 'SISTEMA FACTURACION' THEN 'SISTEMA DE FACTURACION'
             ELSE aux_familia
         END AS familia,
 
