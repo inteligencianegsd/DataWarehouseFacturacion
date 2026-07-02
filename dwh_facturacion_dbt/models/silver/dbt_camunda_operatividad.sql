@@ -41,28 +41,8 @@ con_fecha_primer_aprobado AS (
             WHEN producto = 'SF' THEN
                 MIN(CASE WHEN estado = 'APROBADO' THEN fecha_aprobacion END)
                     OVER (PARTITION BY ruc_aux, producto)
-        END as fecha_primer_aprobado_con_producto,
-
-        CASE
-            WHEN producto = 'FIRMA' THEN
-                MIN(CASE WHEN estado = 'APROBADO' THEN fecha_aprobacion END)
-                    OVER (PARTITION BY cedula)
-            WHEN producto = 'SF' THEN
-                MIN(CASE WHEN estado = 'APROBADO' THEN fecha_aprobacion END)
-                    OVER (PARTITION BY ruc_aux)
-        END as fecha_primer_aprobado_sin_producto
-    FROM cleaned_articulos
-),
-
--- Luego en el siguiente CTE seleccionas cuál usar:
-enriched_fecha_primera_aprobacion AS (
-    SELECT
-        *,
-        CASE
-            WHEN fecha_aprobacion >= '2026-04-09' THEN fecha_primer_aprobado_con_producto
-            ELSE fecha_primer_aprobado_sin_producto
         END as fecha_primer_aprobado
-    FROM con_fecha_primer_aprobado
+    FROM cleaned_articulos
 ),
 
 enriched AS (
@@ -100,7 +80,7 @@ enriched AS (
 
             ELSE 'N/A'
         END as tipo_venta
-    FROM enriched_fecha_primera_aprobacion
+    FROM con_fecha_primer_aprobado
 ),
 
 

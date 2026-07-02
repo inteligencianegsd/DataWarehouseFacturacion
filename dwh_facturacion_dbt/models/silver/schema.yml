@@ -391,8 +391,9 @@ models:
       **Clasificación NUEVO / RENOVACION:**
       - `NUEVO`: el trámite corresponde a la primera aprobación del producto para ese solicitante.
       - `RENOVACION`: existen aprobaciones anteriores del mismo producto para el mismo solicitante.
-      - La partición para la primera aprobación usa `cedula` para FIRMA y `ruc_aux` para SF.
-        A partir del 2026-04-09 la partición también considera el tipo de `producto`.
+      - La partición para la primera aprobación usa `cedula, producto` para FIRMA y `ruc_aux, producto`
+        para SF, de modo que un cliente antiguo de un producto (p.ej. FIRMA) que adquiere el otro
+        producto (p.ej. SF) por primera vez se clasifica como `NUEVO` para ese producto.
 
       **Deduplicación:** Por `serial_firma` se conserva el registro en estado `APROBADO` si existe;
       de lo contrario, el más reciente por `fecha_aprobacion`.
@@ -463,9 +464,9 @@ models:
           referencia para determinar si un trámite es NUEVO o RENOVACION.
 
           - Para FIRMA: mínimo de `fecha_aprobacion` donde `estado = 'APROBADO'`, particionado por
-            `cedula` (y `producto` desde 2026-04-09).
+            `cedula, producto`.
           - Para SF: mínimo de `fecha_aprobacion` donde `estado = 'APROBADO'`, particionado por
-            `ruc_aux` (y `producto` desde 2026-04-09).
+            `ruc_aux, producto`.
 
       - name: tipo_venta
         description: |
