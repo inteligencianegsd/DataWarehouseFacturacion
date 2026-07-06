@@ -313,7 +313,7 @@ models:
         description: "Familia o categoría del producto (ej. `'FIRMAS ELECTRONICAS'`, `'SISTEMA DE FACTURACION'`)."
 
       - name: atencion
-        description: "Tipo de canal o modalidad de atención del producto. El valor `'CONVENIOS'` filtra productos de convenios institucionales en los datamarts."
+        description: "Tipo de canal o modalidad de atención del producto (ej. `'CONVENIOS'` para productos vendidos bajo convenios institucionales). Los datamarts de convenios ya no filtran por este campo; usan `dbt_fact_facturacion.grupo_vendedor = 'GRUPO CONVENIOS'`."
 
       - name: venta_dirigida
         description: "Segmento de cliente objetivo al que se dirige la venta del producto."
@@ -348,15 +348,16 @@ models:
 
       **Asignación de grupo vendedor** (orden de precedencia):
       1. Reasignación manual (`reasignacion_grupo_vendedor`).
-      2. Distribuidor con indicador de tercero en `comentario_3` (`reasignacion_distribuidores`).
-      3. `'LICENCIAS TELCONET'`: familia `'LICENCIAS'` + cliente del grupo corporativo.
-      4. `'GRUPO TERCEROS'`: `comentario_3` contiene `'TERCER'` + familia FIRMA o SF.
-      5. `'GRUPO DISTRIBUIDORES'`: `comentario_3` contiene `'DISTRIBUI'`.
-      6. `'GRUPO AGENTES'`: factura marcada como de agente o vendedor en `vendedores_agentes`.
-      7. `'GRUPO GEEKTECH'`: cliente con `codigo_cliente = '1792496136'`.
-      8. `'COMERCIAL'`: factura clasificada como comercial por la lógica de `facturas_comercial`.
-      9. `grupo_vendedor_temp` de Camunda (si existe).
-      10. `'GRUPO SECURITY DATA'`: valor por defecto.
+      2. `'GRUPO CONVENIOS'`: `codigo_descuento` contiene `'ALIANZA'`, `'COLEGIOABOGADO'`, `'ANAMER'` o `'FEUE'`.
+      3. Distribuidor con indicador de tercero en `comentario_3` (`reasignacion_distribuidores`).
+      4. `'LICENCIAS TELCONET'`: familia `'LICENCIAS'` + cliente del grupo corporativo.
+      5. `'GRUPO TERCEROS'`: `comentario_3` contiene `'TERCER'` + familia FIRMA o SF.
+      6. `'GRUPO DISTRIBUIDORES'`: `comentario_3` contiene `'DISTRIBUI'`.
+      7. `'GRUPO AGENTES'`: factura marcada como de agente o vendedor en `vendedores_agentes`.
+      8. `'GRUPO GEEKTECH'`: cliente con `codigo_cliente = '1792496136'`.
+      9. `'COMERCIAL'`: factura clasificada como comercial por la lógica de `facturas_comercial`.
+      10. `grupo_vendedor_temp` de Camunda (si existe).
+      11. `'GRUPO SECURITY DATA'`: valor por defecto.
     columns:
       - name: id_factura
         description: |
@@ -461,8 +462,8 @@ models:
           y metas comerciales.
 
           Valores posibles: `'GRUPO SECURITY DATA'`, `'COMERCIAL'`, `'LICENCIAS TELCONET'`,
-          `'GRUPO TERCEROS'`, `'GRUPO DISTRIBUIDORES'`, `'GRUPO AGENTES'`, `'GRUPO GEEKTECH'`.
-          Ver la descripción del modelo para el orden de precedencia completo.
+          `'GRUPO TERCEROS'`, `'GRUPO DISTRIBUIDORES'`, `'GRUPO AGENTES'`, `'GRUPO GEEKTECH'`,
+          `'GRUPO CONVENIOS'`. Ver la descripción del modelo para el orden de precedencia completo.
 
       - name: descuento_articulo
         description: |

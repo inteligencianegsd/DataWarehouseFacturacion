@@ -77,6 +77,11 @@ stg_fact_facturacion AS (
 
         CASE
             WHEN rgv_0.codigo_documento IS NOT NULL THEN rgv_0.grupo_asignado
+            WHEN f_0.codigo_descuento LIKE '%ALIANZA%'
+                OR f_0.codigo_descuento LIKE '%COLEGIOABOGADO%'
+                OR f_0.codigo_descuento LIKE '%ANAMER%'
+                OR f_0.codigo_descuento LIKE '%FEUE%'
+            THEN 'GRUPO CONVENIOS'
             WHEN rd_0.grupo_vendedor_reasignado IS NOT NULL AND f_0.comentario_3 LIKE '%TERCER%' AND da_0.familia IN ('FIRMAS ELECTRONICAS', 'SISTEMA DE FACTURACION') THEN grupo_vendedor_reasignado
 --            WHEN f_0.comentario_3 like '%COMERCIAL%' THEN 'COMERCIAL'
             WHEN (da_0.familia = 'LICENCIAS' AND dc_0.is_same_corporate_group) THEN 'LICENCIAS TELCONET'

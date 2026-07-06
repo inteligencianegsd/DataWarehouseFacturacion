@@ -108,8 +108,9 @@ models:
       Vista del datamart de convenios que filtra únicamente las transacciones de productos vendidos
       bajo convenios institucionales.
 
-      Un convenio es identificado por `dbt_dim_codigos.atencion = 'CONVENIOS'`. Se incluyen tanto
-      facturas vigentes (`FACTURADO`) como anuladas (`ANULADO`).
+      Un convenio es identificado por `dbt_fact_facturacion.grupo_vendedor = 'GRUPO CONVENIOS'`
+      (asignado cuando `codigo_descuento` contiene `'ALIANZA'`, `'COLEGIOABOGADO'`, `'ANAMER'` o
+      `'FEUE'`). Se incluyen tanto facturas vigentes (`FACTURADO`) como anuladas (`ANULADO`).
 
       Extiende `dbt_fact_facturacion` agregando el campo `total_factura` (subtotal + IVA).
     columns:
@@ -135,7 +136,7 @@ models:
         description: "Identificador de la sucursal donde se realizó la venta."
 
       - name: id_codigo
-        description: "Clave foránea al catálogo de códigos de producto. Solo incluye códigos con `atencion = 'CONVENIOS'`."
+        description: "Clave foránea al catálogo de códigos de producto de la línea de factura."
 
       - name: cantidad_articulos
         description: "Cantidad de unidades del artículo en la línea de factura."
@@ -170,8 +171,8 @@ models:
       Vista que expone los clientes únicos que tienen al menos una factura vigente (`FACTURADO`)
       de un producto de convenio.
 
-      Hereda todas las columnas de `dbt_dim_clientes` filtrando por `atencion = 'CONVENIOS'`
-      y `estado_factura = 'FACTURADO'`.
+      Hereda todas las columnas de `dbt_dim_clientes` filtrando por
+      `grupo_vendedor = 'GRUPO CONVENIOS'` y `estado_factura = 'FACTURADO'`.
     columns:
       - name: id_cliente
         description: "Clave surrogate del cliente."
@@ -194,7 +195,8 @@ models:
       Vista que expone las facturas únicas que contienen al menos un artículo de convenio, independientemente
       de su estado (`FACTURADO` o `ANULADO`).
 
-      Hereda todas las columnas de `dbt_dim_facturas` filtrando por `atencion = 'CONVENIOS'`.
+      Hereda todas las columnas de `dbt_dim_facturas` filtrando por
+      `grupo_vendedor = 'GRUPO CONVENIOS'`.
     columns:
       - name: id_factura
         description: "Clave surrogate de la factura."

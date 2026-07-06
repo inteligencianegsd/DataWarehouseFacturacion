@@ -270,20 +270,20 @@ UNION
 
 SELECT
 	id_sfsf AS id_tramite,
-	cedula, 
+	cedula,
 	fechaAprob AS fecha_aprobacion,
-	fechaAprob AS fecha_factura,
-	facturaEmitida AS factura, 
-	'SF Sin Firma' AS producto,
-	fecha_creacion AS fecha_inicio_tramite, 
-	'SF Sin Firma' AS mediocam,
-	ruc, 
+	fecha_factura,
+	facturaEmitida AS factura,
+	ruc,
 	tipoPersona AS tipo_firma,
-	numserie   AS serial_firma, 
-	1   AS sf_control, 
+	numserie AS serial_firma,
+	fecha_creacion AS fecha_inicio_tramite,
 	ruc AS ruc_aux,
+	'ARCHIVO' AS medio,
+	1 AS sf_control,
+	'SF Sin Firma' AS producto,
 	'APROBADO' as estado
-FROM 
+FROM
 	Certificados_Electronicos_Subca2.tb_securityFSinFirma
 WHERE 
 	estado IN (1, 5)

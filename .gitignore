@@ -1,8 +1,10 @@
 .idea/
 .venv
+.env
 # Mac
 .DS_Store
 .claude/
+backfill_tb_securityfsinfirma.py
 # Entorno virtual
 .venv/
 
