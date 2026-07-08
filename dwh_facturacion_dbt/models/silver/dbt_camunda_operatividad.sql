@@ -19,7 +19,7 @@ WITH cleaned_articulos AS (
         END as medio,
         sf_control,
         CASE
-            WHEN TRIM(UPPER(producto)) IN ('EMISION SF SIN FIRMA', 'SF SIN FIRMA', 'SF CON FIRMA') THEN 'SF'
+            WHEN TRIM(UPPER(producto)) IN ('EMISION SF SIN FIRMA', 'RENOVACION SF SIN FIRMA', 'SF SIN FIRMA', 'SF CON FIRMA') THEN 'SF'
             WHEN TRIM(UPPER(producto)) IN ('RENOVACION SF', 'EMISION SF')          THEN 'SF'
             WHEN TRIM(UPPER(producto)) IN ('EMISION', 'RENOVACION')                THEN 'FIRMA'
             ELSE TRIM(UPPER(producto))

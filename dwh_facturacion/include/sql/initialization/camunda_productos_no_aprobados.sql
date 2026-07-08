@@ -45,7 +45,7 @@
     	t.fecha_inicio_tramite >= '2024-01-13'
         AND t.estado_registro = TRUE
         AND u.tipo <> 781
-        AND t.id_proceso IN (482, 481, 487, 489, 488)
+        AND t.id_proceso IN (482, 481, 487, 489, 488, 493)
         AND (t.id_tarea NOT IN (620, 621) OR (t.id_tarea  IN (620, 621) AND f.estado_registro = FALSE))
         AND (fs.estado_registro = TRUE OR fs.estado_registro IS NULL)
         and f.factura_externa IS NOT null

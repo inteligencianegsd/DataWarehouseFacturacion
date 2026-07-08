@@ -440,8 +440,8 @@ models:
           Tipo de producto del trámite, normalizado a dos valores.
 
           - `'FIRMA'`: firma digital. Incluye los valores de origen `'EMISION'` y `'RENOVACION'`.
-          - `'SF'`: sistema de facturación electrónica. Incluye `'EMISION SF SIN FIRMA'`, `'SF SIN FIRMA'`,
-            `'SF CON FIRMA'`, `'RENOVACION SF'`, `'EMISION SF'`.
+          - `'SF'`: sistema de facturación electrónica. Incluye `'EMISION SF SIN FIRMA'`, `'RENOVACION SF SIN FIRMA'`,
+            `'SF SIN FIRMA'`, `'SF CON FIRMA'`, `'RENOVACION SF'`, `'EMISION SF'`.
 
       - name: grupo_vendedor
         description: |
