@@ -73,6 +73,7 @@ stg_fact_facturacion AS (
         t_0.cantidad_articulos * t_0.valor_unitario * (t_0.porcentaje_descuento) / 100 AS descuento_articulo,
         f_0.total - f_0.total_iva AS total_sin_iva,
         t_0.porcentaje_iva,
+        rs_0.numero_factura IS NOT NULL AS excluir_ajuste_centavos,
 
 
         CASE
@@ -110,6 +111,7 @@ stg_fact_facturacion AS (
     LEFT JOIN facturas_convenios fcon_0 ON df_0.codigo_documento = fcon_0.codigo_documento
     LEFT JOIN {{ref('dbt_dim_codigos')}} dco_default ON dco_default.codigo = 'MANUAL.FACT.MANUAL'
     LEFT JOIN {{(ref('reasignacion_periodo_fiscal'))}} rpf_0 ON f_0.numero_factura = rpf_0.numero_factura
+    LEFT JOIN {{ref('reasignacion_subtotal')}} rs_0 ON f_0.numero_factura = rs_0.numero_factura
     --LEFT JOIN {{ref('vendedores_comercial')}} vc_0 ON dv_0.codigo_vendedor = vc_0.codigo_vendedor
     LEFT JOIN facturas_comercial fc_0 on f_0.codigo_documento = fc_0.codigo_documento
     LEFT JOIN facturas_agentes fa_0 on f_0.codigo_documento = fa_0.codigo_documento
@@ -162,7 +164,7 @@ stg_fact_subtotal AS (
         porcentaje_descuento,
         fecha_emision_fenix,
         case
-            when  diferencia <> 0 then ROUND(subtotal_articulo + ajuste_centavos, 2)
+            when diferencia <> 0 and not excluir_ajuste_centavos then ROUND(subtotal_articulo + ajuste_centavos, 2)
             else subtotal_articulo
         END AS subtotal_articulo,
         porcentaje_iva,

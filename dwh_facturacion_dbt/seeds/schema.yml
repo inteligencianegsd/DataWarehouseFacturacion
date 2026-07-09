@@ -151,6 +151,25 @@ seeds:
       - name: motivo
         description: Descripción del motivo del ajuste de período fiscal.
 
+  - name: reasignacion_subtotal
+    description: >
+      Facturas cuyo subtotal_articulo por línea, calculado a partir de
+      cantidad_articulos, valor_unitario y porcentaje_descuento, ya coincide
+      correctamente con el total de la factura en Fenix. En estas facturas el
+      valor de total_sin_iva quedó mal registrado en Fenix (por notas de
+      crédito ingresadas incorrectamente), por lo que la diferencia calculada
+      en fact_facturacion no debe prorratearse como ajuste_centavos: se
+      excluye del CASE de corrección y se conserva el subtotal_articulo
+      calculado tal cual.
+    columns:
+      - name: numero_factura
+        description: Número de factura que se excluye del ajuste proporcional de centavos.
+        tests:
+          - not_null
+          - unique
+      - name: motivo
+        description: Descripción del motivo de la exclusión del ajuste de centavos.
+
   - name: vendedores_agentes
     description: >
       Códigos de vendedor de Fenix correspondientes a todos los agentes. Cualquier

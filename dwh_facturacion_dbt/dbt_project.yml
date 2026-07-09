@@ -109,6 +109,12 @@ seeds:
         fecha_cambio: timestamp
         motivo: varchar(128)
 
+    reasignacion_subtotal:
+      +schema: features
+      +column_types:
+        numero_factura: varchar(30)
+        motivo: varchar(200)
+
 
 
 
