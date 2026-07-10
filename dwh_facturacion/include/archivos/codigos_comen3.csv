@@ -1116,7 +1116,7 @@ F.ON.M.A.N.,Firmas electronicas Recuperacion Contrasena,Firmas electronicas,Onli
 F.OF.P.A.N.,Firmas electronicas Recuperacion Contrasena,Firmas electronicas,Offline,Personas Naturales,Archivo,Nuevo,NULL,Recuperacion Contrasena
 F.OF.R.A.N.,Firmas electronicas Recuperacion Contrasena,Firmas electronicas,Offline,Representante Legal,Archivo,Nuevo,NULL,Recuperacion Contrasena
 F.OF.M.A.N.,Firmas electronicas Recuperacion Contrasena,Firmas electronicas,Offline,Miembro de empresa,Archivo,Nuevo,NULL,Recuperacion Contrasena
-F.E.F.A.V.,Firma Entidada Financiera Alianza del Valle,Aplicativos y certificado,ALIANZA,OFFLINE,,,,
+F.E.F.A.V.,Firma Entidada Financiera Alianza del Valle,Aplicativos y certificado,ALIANZA,Personas Naturales,,,,
 SF.CN.P.S.N.V2.MIN.,Sistema de facturacion Vigencia 2 anos,Sistema de facturacion,Convenios,Personas Naturales,Sin firma,Nuevo,Mini,Vigencia 2 anos
 SF.CN.P.S.N.V2.BAS.,Sistema de facturacion Vigencia 2 anos,Sistema de facturacion,Convenios,Personas Naturales,Sin firma,Nuevo,Basico,Vigencia 2 anos
 SF.CN.P.S.N.V2.ESE.,Sistema de facturacion Vigencia 2 anos,Sistema de facturacion,Convenios,Personas Naturales,Sin firma,Nuevo,Esencial,Vigencia 2 anos
@@ -1350,7 +1350,7 @@ F.OF.P.A.R.V1s.,Firmas electronicas Vigencia 1 semana,Firmas electronicas,Offlin
 F.CN.P.A.R.V1s.,Firmas electronicas Vigencia 1 semana,Firmas electronicas,Convenios,Personas Naturales,Archivo,Renovacion,NULL,Vigencia 1 semana
 SF.CA.MANUAL,Comprobantes Adicionales,Sistema de facturacion,Online,NULL,Comprobantes Adicionales,NULL,NULL,NULL
 MANUAL.FACT.MANUAL,MANUAL,MANUAL,MANUAL,NULL,MANUAL,NULL,NULL,MANUAL
-CONVE.FACT.MANUAL,MANUAL,Firmas electronicas,Convenios,Convenios,MANUAL,NULL,MANUAL,NULL
+CONVE.FACT.MANUAL,MANUAL,Firmas electronicas,Convenios,NULL,MANUAL,NULL,MANUAL,NULL
 SF.MAN.S.UPG.,UPGRADE SISTEMA DE FACTURACION,Sistema de facturacion,MANUAL,NULL,Sin firma,Upgrade,Mini,NULL
 F.MAN.A.V1.,Firmas electronicas,Firmas electronicas,MANUAL,NULL,Archivo,NULL,NULL,Vigencia 1 ano
 F.MAN.A.V2.,Firmas electronicas,Firmas electronicas,MANUAL,NULL,Archivo,NULL,NULL,Vigencia 2 ano

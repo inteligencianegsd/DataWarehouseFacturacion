@@ -4,6 +4,7 @@
 # Mac
 .DS_Store
 .claude/
+.idea/
 backfill_tb_securityfsinfirma.py
 # Entorno virtual
 .venv/
@@ -11,3 +12,9 @@ backfill_tb_securityfsinfirma.py
 # Python cache
 __pycache__/
 *.pyc
+
+# dbt build artifacts
+dwh_facturacion_dbt/target/
+dwh_facturacion_dbt/dbt_packages/
+dwh_facturacion_dbt/logs/
+dwh_facturacion_dbt/package-lock.yml
