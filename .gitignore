@@ -6,6 +6,9 @@
 .claude/
 .idea/
 backfill_tb_securityfsinfirma.py
+
+#Comentest
+backfill_facturas_puntuales.py
 # Entorno virtual
 .venv/
 
