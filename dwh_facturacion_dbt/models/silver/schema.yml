@@ -141,9 +141,10 @@ models:
         description: |
           Segundo campo de comentario de la factura, convertido a mayúsculas.
 
-          Contiene el código de descuento con el formato `'CODDESCUENTO <codigo>'`. También puede
-          contener el texto `'RENOVACION'`, que se usa para identificar ventas de renovación en la
-          lógica de clasificación del grupo COMERCIAL.
+          Contiene el código de descuento con el formato `'CODDESCUENTO <codigo>'` (también se acepta
+          la variante con espacio `'COD DESCUENTO <codigo>'`, presente ocasionalmente por error de
+          digitación en Fenix). También puede contener el texto `'RENOVACION'`, que se usa para
+          identificar ventas de renovación en la lógica de clasificación del grupo COMERCIAL.
 
       - name: comentario_3
         description: |
@@ -163,7 +164,8 @@ models:
       - name: codigo_descuento
         description: |
           Código de descuento extraído del campo `comentario_2`. Se parsea buscando el patrón
-          `'CODDESCUENTO <codigo>'`.
+          `'CODDESCUENTO <codigo>'`, aceptando también la variante con espacio
+          `'COD DESCUENTO <codigo>'`.
 
           Si no se encuentra ningún código, se asigna `'SIN CODIGO DE DESCUENTO'`.
 

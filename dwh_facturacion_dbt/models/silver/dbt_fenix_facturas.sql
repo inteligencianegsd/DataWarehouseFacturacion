@@ -87,11 +87,7 @@ parsed_facturas AS (
 
         COALESCE(
             NULLIF(
-                split_part(
-                    split_part(cf_0.comentario_2, 'CODDESCUENTO ', 2),
-                    ' ',
-                    1
-                ),
+                substring(cf_0.comentario_2 FROM 'COD ?DESCUENTO\s+(\S+)'),
                 ''
             ),
             'SIN CODIGO DE DESCUENTO'
