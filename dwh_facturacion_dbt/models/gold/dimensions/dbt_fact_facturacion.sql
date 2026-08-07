@@ -12,6 +12,7 @@ WITH facturas_comercial AS (
     JOIN {{ref('dbt_dim_clientes')}} dc_0 ON f_0.codigo_cliente = dc_0.codigo_cliente
     JOIN {{ref('dbt_dim_vendedores')}} dv_0 ON f_0.codigo_vendedor = dv_0.codigo_vendedor
     LEFT JOIN {{ref('vendedores_comercial')}} vc_0 ON dv_0.codigo_vendedor = vc_0.codigo_vendedor
+    LEFT JOIN {{ref('reasignacion_articulos_comercial')}} rac_0 ON t_0.codigo_articulo = rac_0.codigo_articulo AND f_0.fecha_emision >= rac_0.fecha_cambio
     WHERE
     f_0.codigo_factura NOT LIKE 'DV%' AND (
         (da_0.is_codigo_comercial AND NOT da_0.verificacion_vendedor)
@@ -20,6 +21,7 @@ WITH facturas_comercial AS (
         OR f_0.comentario_3 = 'F.E.F.A.V.'
         OR (f_0.comentario_3 = 'COMERCIAL' AND NOT da_0.verificacion_vendedor)
         OR (f_0.comentario_3 = 'COMERCIAL' AND da_0.verificacion_vendedor AND f_0.comentario_2 NOT LIKE '%RENOVACION%')
+        OR rac_0.codigo_articulo IS NOT NULL
         OR EXISTS (
             SELECT 1
             FROM {{ref('reasignacion_comercial')}} rc_0

@@ -58,6 +58,26 @@ seeds:
       - name: concepto
         description: Concepto del artículo, indica si incluye firma o no (por ejemplo, CON FIRMA, SIN FIRMA, COMPROBANTES ADICIONALES).
 
+  - name: reasignacion_articulos_comercial
+    description: >
+      Artículos que deben clasificarse en GRUPO COMERCIAL a partir de una fecha
+      determinada, sin necesidad de estar en el seed articulos_comercial ni de
+      pasar por la validación de vendedor. Se usa cuando un artículo cambia de
+      canal (ej. rebranding a un producto propio) y solo las facturas emitidas
+      desde fecha_cambio deben reclasificarse; las anteriores mantienen su
+      clasificación original (ej. GRUPO TERCEROS o GRUPO SECURITY DATA).
+    columns:
+      - name: codigo_articulo
+        description: Código del artículo en Fenix que se reasigna a GRUPO COMERCIAL desde fecha_cambio.
+        tests:
+          - not_null
+      - name: fecha_cambio
+        description: Fecha a partir de la cual las facturas de este artículo se clasifican como COMERCIAL (fecha_emision >= fecha_cambio).
+        tests:
+          - not_null
+      - name: motivo
+        description: Descripción del motivo del cambio de canal del artículo.
+
   - name: reasignacion_comercial
     description: >
       Facturas que, por razones puntuales y de negocio, deben ser asignadas directamente

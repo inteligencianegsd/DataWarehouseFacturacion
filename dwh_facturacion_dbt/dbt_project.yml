@@ -115,6 +115,26 @@ seeds:
         numero_factura: varchar(30)
         motivo: varchar(200)
 
+    reasignacion_articulos_comercial:
+      +schema: features
+      +column_types:
+        codigo_articulo: varchar(30)
+        fecha_cambio: timestamp
+        motivo: varchar(200)
+
+    canal_indirecto:
+      +schema: features
+      +column_types:
+        ruc: varchar(15)
+        razon_social: varchar(200)
+        grupo: varchar(30)
+        estado: varchar(15)
+        fecha_inicio: timestamp
+        fecha_fin: timestamp
+        modelo: varchar(20)
+        dias_plazo: integer
+        porcentaje_comision: numeric(5,2)
+
 
 
 
