@@ -84,6 +84,7 @@ stg_fact_facturacion AS (
                 OR f_0.codigo_descuento LIKE '%COLEGIOABOGADO%'
                 OR f_0.codigo_descuento LIKE '%ANAMER%'
                 OR f_0.codigo_descuento LIKE '%FEUE%'
+                OR dco_0.atencion = 'CONVENIOS'
             THEN 'GRUPO CONVENIOS'
             WHEN rd_0.grupo_vendedor_reasignado IS NOT NULL AND f_0.comentario_3 LIKE '%TERCER%' AND da_0.familia IN ('FIRMAS ELECTRONICAS', 'SISTEMA DE FACTURACION') THEN grupo_vendedor_reasignado
 --            WHEN f_0.comentario_3 like '%COMERCIAL%' THEN 'COMERCIAL'

@@ -313,7 +313,7 @@ models:
         description: "Familia o categoría del producto (ej. `'FIRMAS ELECTRONICAS'`, `'SISTEMA DE FACTURACION'`)."
 
       - name: atencion
-        description: "Tipo de canal o modalidad de atención del producto (ej. `'CONVENIOS'` para productos vendidos bajo convenios institucionales). Los datamarts de convenios ya no filtran por este campo; usan `dbt_fact_facturacion.grupo_vendedor = 'GRUPO CONVENIOS'`."
+        description: "Tipo de canal o modalidad de atención del producto (ej. `'CONVENIOS'` para productos vendidos bajo convenios institucionales). Los datamarts de convenios no filtran directamente por este campo; usan `dbt_fact_facturacion.grupo_vendedor = 'GRUPO CONVENIOS'`, cuyo cálculo incorpora `atencion = 'CONVENIOS'` (join por `comentario_3 = codigo`) como uno de los criterios que asignan ese grupo."
 
       - name: venta_dirigida
         description: "Segmento de cliente objetivo al que se dirige la venta del producto."
@@ -348,7 +348,8 @@ models:
 
       **Asignación de grupo vendedor** (orden de precedencia):
       1. Reasignación manual (`reasignacion_grupo_vendedor`).
-      2. `'GRUPO CONVENIOS'`: `codigo_descuento` contiene `'ALIANZA'`, `'COLEGIOABOGADO'`, `'ANAMER'` o `'FEUE'`.
+      2. `'GRUPO CONVENIOS'`: `codigo_descuento` contiene `'ALIANZA'`, `'COLEGIOABOGADO'`, `'ANAMER'` o `'FEUE'`,
+         o `dim_codigos.atencion = 'CONVENIOS'` (join por `comentario_3 = codigo`).
       3. Distribuidor con indicador de tercero en `comentario_3` (`reasignacion_distribuidores`).
       4. `'LICENCIAS TELCONET'`: familia `'LICENCIAS'` + cliente del grupo corporativo.
       5. `'GRUPO TERCEROS'`: `comentario_3` contiene `'TERCER'` + familia FIRMA o SF.
