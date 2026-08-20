@@ -359,6 +359,13 @@ models:
       9. `'COMERCIAL'`: factura clasificada como comercial por la lógica de `facturas_comercial`.
       10. `grupo_vendedor_temp` de Camunda (si existe).
       11. `'GRUPO SECURITY DATA'`: valor por defecto.
+
+      **Herencia en notas de crédito:** las reglas 1-11 se calculan por línea usando los comentarios
+      y códigos de descuento del propio documento, que no siempre se replican en la nota de crédito
+      (`is_nc`) asociada. Por eso, para cada línea de una nota de crédito se busca la línea de la
+      factura original con el mismo `codigo_documento` + `id_articulo` (calculada con las reglas
+      1-11) y se usa ese `grupo_vendedor` en vez de recalcularlo; si no hay línea de factura original
+      con ese artículo (p. ej. fue excluida), se mantiene el resultado de las reglas 1-11 para la NC.
     columns:
       - name: id_factura
         description: |

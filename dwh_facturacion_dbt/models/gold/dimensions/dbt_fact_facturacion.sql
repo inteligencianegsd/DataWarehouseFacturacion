@@ -50,6 +50,8 @@ facturas_agentes AS (
 stg_fact_facturacion AS (
     SELECT
         df_0.id_factura,
+        f_0.codigo_documento,
+        f_0.is_nc,
         f_0.fecha_emision as fecha_emision_fenix,
         -- Desplaza un mes atrás si la factura está en el seed
         CASE
@@ -128,13 +130,54 @@ stg_fact_facturacion AS (
 
 ),
 
+-- Grupo vendedor de la factura original por documento + artículo, para que las
+-- notas de crédito (is_nc) hereden la clasificación de su factura en vez de
+-- recalcularla (sus comentarios/codigo_descuento no siempre replican los de la factura)
+grupo_vendedor_original AS (
+    SELECT
+        codigo_documento,
+        id_articulo,
+        MAX(grupo_vendedor) AS grupo_vendedor_original
+    FROM stg_fact_facturacion
+    WHERE NOT is_nc
+    GROUP BY codigo_documento, id_articulo
+),
+
+stg_fact_facturacion_nc AS (
+    SELECT
+        sff.id_factura,
+        sff.fecha_emision_fenix,
+        sff.fecha_emision,
+        sff.id_cliente,
+        sff.id_vendedor,
+        sff.id_articulo,
+        sff.id_sucursal,
+        sff.id_codigo,
+        sff.cantidad_articulos,
+        sff.valor_unitario,
+        sff.porcentaje_descuento,
+        sff.subtotal_articulo,
+        sff.descuento_articulo,
+        sff.total_sin_iva,
+        sff.porcentaje_iva,
+        sff.excluir_ajuste_centavos,
+        CASE
+            WHEN sff.is_nc AND gvo.grupo_vendedor_original IS NOT NULL THEN gvo.grupo_vendedor_original
+            ELSE sff.grupo_vendedor
+        END AS grupo_vendedor
+    FROM stg_fact_facturacion sff
+    LEFT JOIN grupo_vendedor_original gvo
+        ON sff.codigo_documento = gvo.codigo_documento
+        AND sff.id_articulo = gvo.id_articulo
+),
+
 stg_fact_facturacion_diferencia AS (
     SELECT
         *,
         SUM(subtotal_articulo) OVER (PARTITION BY id_factura) AS suma_subtotales,
         -- Diferencia a distribuir por factura
         total_sin_iva - SUM(subtotal_articulo) OVER (PARTITION BY id_factura) AS diferencia
-    FROM stg_fact_facturacion
+    FROM stg_fact_facturacion_nc
 ),
 
 stg_fact_facturacion_correccion AS (
