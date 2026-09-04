@@ -58,6 +58,7 @@ fact_pre AS (
         ff.id_sucursal,
         ff.id_codigo,
         ff.grupo_vendedor,
+        ff.grupo_vendedor_test,
         ff.id_vendedor,
 
         -- Artículo: SF → id del primer artículo mapeado | no-SF → el propio
@@ -84,6 +85,7 @@ stg_fact_facturacion AS (
         id_codigo,
         id_vendedor,
         grupo_vendedor,
+        grupo_vendedor_test,
         id_articulo,
         cantidad_articulos,
         SUM(valor_unitario)    AS valor_unitario,
@@ -98,6 +100,7 @@ stg_fact_facturacion AS (
         id_sucursal,
         id_codigo,
         grupo_vendedor,
+        grupo_vendedor_test,
         id_articulo,
         cantidad_articulos
 )
