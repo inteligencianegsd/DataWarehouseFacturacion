@@ -473,6 +473,22 @@ models:
           `'GRUPO TERCEROS'`, `'GRUPO DISTRIBUIDORES'`, `'GRUPO AGENTES'`, `'GRUPO GEEKTECH'`,
           `'GRUPO CONVENIOS'`. Ver la descripción del modelo para el orden de precedencia completo.
 
+      - name: grupo_vendedor_test
+        description: |
+          **EXPERIMENTAL (2026-09-04), no usar en reportes productivos.** Columna de comparación
+          para validar `grupo_vendedor` contra el esquema `canal_indirecto` (`usuarios` +
+          `historial_grupo`). Se calcula igual que `grupo_vendedor` y luego, como paso final, se
+          reasigna usando canal_indirecto SOLO si el grupo calculado es uno de los 4 "grupos de
+          canal": `'GRUPO SECURITY DATA'`, `'GRUPO TERCEROS'`, `'GRUPO DISTRIBUIDORES'` o
+          `'GRUPO AGENTES'`. No afecta `'COMERCIAL'`, `'GRUPO CONVENIOS'`, `'LICENCIAS TELCONET'`
+          ni `'GRUPO GEEKTECH'`, que tienen sus propias reglas.
+
+          El grupo de canal_indirecto para el RUC del cliente se resuelve así: primero el grupo
+          vigente en `historial_grupo` para la fecha de la factura; si no hay período que
+          coincida, el grupo vigente (`Fecha_Fin IS NULL`) más reciente del RUC en `usuarios`. Si
+          el RUC no tiene ningún registro en canal_indirecto, se mantiene el valor de
+          `grupo_vendedor` sin cambios.
+
       - name: descuento_articulo
         description: |
           Monto total de descuento aplicado a esta línea de factura.

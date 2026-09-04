@@ -392,6 +392,50 @@ sources:
           - name: fecha_factura
             description: Fecha de emisión de la factura vinculada al trámite de firma digital.
 
+  - name: canal_indirecto
+    schema: canal_indirecto
+    description: >
+      Esquema del portal/app de canal indirecto (terceros, distribuidores) donde se registran
+      solicitudes de usuarios y su historial de cambio de grupo comercial. Se usa (2026-09) de
+      forma experimental como validación cruzada de `grupo_vendedor` en `dbt_fact_facturacion`
+      (columna `grupo_vendedor_test`), sin reemplazar aún la lógica productiva.
+    tables:
+      - name: usuarios
+        description: >
+          Log de solicitudes de usuarios del canal indirecto. NO es una fila por RUC: un mismo
+          RUC puede tener múltiples solicitudes (`ID_Origen`) a lo largo del tiempo. El registro
+          "vigente" de un RUC es el de `Fecha_Fin IS NULL` con el `Fecha_Registro` más reciente.
+        columns:
+          - name: ID_Origen
+            description: "Identificador único de la solicitud/usuario."
+          - name: RUC
+            description: "RUC/cédula del usuario, cruza con dim_clientes.cif."
+          - name: Grupo
+            description: "Grupo comercial asignado a esta solicitud (ej. GRUPO TERCEROS, GRUPO DISTRIBUIDORES)."
+          - name: Estado
+            description: "Estado de la solicitud (Activo, Desactivo, Bloqueado, etc.)."
+          - name: Fecha_Registro
+            description: "Fecha de creación de la solicitud."
+          - name: Fecha_Fin
+            description: "Fecha de finalización de la solicitud. NULL indica que sigue vigente."
+
+      - name: historial_grupo
+        description: >
+          Historial de cambios de grupo comercial por período para una solicitud (`ID_Origen`,
+          FK hacia `usuarios.ID_Origen`). Permite saber qué grupo tenía asignado un usuario en
+          una fecha específica (ej. GRUPO TERCEROS hasta cierta fecha, luego GRUPO DISTRIBUIDORES).
+        columns:
+          - name: Id_Historial
+            description: "Identificador único del registro de historial."
+          - name: ID_Origen
+            description: "FK hacia usuarios.ID_Origen."
+          - name: Grupo
+            description: "Grupo comercial vigente durante este período."
+          - name: Fecha_Inicio
+            description: "Fecha de inicio del período con este grupo."
+          - name: Fecha_Fin
+            description: "Fecha de fin del período. NULL indica que el período sigue abierto."
+
   - name: features_by_code
     schema: analytics_features
     tables:

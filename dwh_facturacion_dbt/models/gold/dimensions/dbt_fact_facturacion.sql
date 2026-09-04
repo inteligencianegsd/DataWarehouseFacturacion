@@ -47,6 +47,74 @@ facturas_agentes AS (
     OR va_0.codigo_vendedor IS NOT NULL
 ),
 
+-- EXPERIMENTAL (2026-09-04): validación cruzada de grupo_vendedor contra el esquema
+-- canal_indirecto (usuarios/historial_grupo). No reemplaza grupo_vendedor, solo alimenta
+-- la columna grupo_vendedor_test para comparar cuánto cambiaría la clasificación.
+canal_indirecto_historial AS (
+    SELECT DISTINCT
+        u."RUC" AS ruc,
+        h."Grupo" AS grupo,
+        h."Fecha_Inicio" AS fecha_inicio,
+        h."Fecha_Fin" AS fecha_fin
+    FROM {{ source('canal_indirecto', 'historial_grupo') }} h
+    JOIN {{ source('canal_indirecto', 'usuarios') }} u ON h."ID_Origen" = u."ID_Origen"
+    WHERE u."RUC" IS NOT NULL AND u."RUC" <> ''
+),
+
+canal_indirecto_vigente AS (
+    SELECT ruc, grupo, fecha_registro
+    FROM (
+        SELECT
+            u."RUC" AS ruc,
+            u."Grupo" AS grupo,
+            u."Fecha_Registro" AS fecha_registro,
+            ROW_NUMBER() OVER (PARTITION BY u."RUC" ORDER BY u."Fecha_Registro" DESC) AS rn
+        FROM {{ source('canal_indirecto', 'usuarios') }} u
+        WHERE u."Fecha_Fin" IS NULL
+          AND u."RUC" IS NOT NULL AND u."RUC" <> ''
+    ) ranked
+    WHERE rn = 1
+),
+
+-- Un factura puede matchear varios períodos de historial (datos duplicados por RUC con
+-- múltiples ID_Origen); se prioriza el período más reciente que ya inició.
+canal_indirecto_por_documento AS (
+    SELECT codigo_documento, grupo_canal_indirecto
+    FROM (
+        SELECT
+            f_0.codigo_documento,
+            ch_0.grupo AS grupo_canal_indirecto,
+            ROW_NUMBER() OVER (PARTITION BY f_0.codigo_documento ORDER BY ch_0.fecha_inicio DESC) AS rn
+        FROM {{ref('dbt_fenix_facturas')}} f_0
+        JOIN {{ref('dbt_dim_clientes')}} dc_0 ON f_0.codigo_cliente = dc_0.codigo_cliente
+        JOIN canal_indirecto_historial ch_0
+            ON dc_0.cif = ch_0.ruc
+            AND f_0.fecha_emision >= ch_0.fecha_inicio
+            AND (ch_0.fecha_fin IS NULL OR f_0.fecha_emision < ch_0.fecha_fin)
+    ) ranked
+    WHERE rn = 1
+
+    UNION ALL
+
+    -- Fallback: sin match de historial para la fecha de la factura, se usa el grupo vigente
+    -- del RUC en usuarios (solo para documentos que no obtuvieron match arriba), y solo si la
+    -- factura es posterior al registro del usuario (no se reasigna retroactivamente antes de
+    -- que el RUC existiera en canal_indirecto)
+    SELECT f_0.codigo_documento, cv_0.grupo AS grupo_canal_indirecto
+    FROM {{ref('dbt_fenix_facturas')}} f_0
+    JOIN {{ref('dbt_dim_clientes')}} dc_0 ON f_0.codigo_cliente = dc_0.codigo_cliente
+    JOIN canal_indirecto_vigente cv_0
+        ON dc_0.cif = cv_0.ruc
+        AND f_0.fecha_emision >= cv_0.fecha_registro
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM canal_indirecto_historial ch_1
+        WHERE ch_1.ruc = dc_0.cif
+          AND f_0.fecha_emision >= ch_1.fecha_inicio
+          AND (ch_1.fecha_fin IS NULL OR f_0.fecha_emision < ch_1.fecha_fin)
+    )
+),
+
 stg_fact_facturacion AS (
     SELECT
         df_0.id_factura,
@@ -130,6 +198,23 @@ stg_fact_facturacion AS (
 
 ),
 
+-- EXPERIMENTAL (2026-09-04): grupo_vendedor_test = grupo_vendedor, pero como paso final se
+-- reasigna usando canal_indirecto (usuarios/historial_grupo) SOLO cuando el grupo calculado es
+-- uno de los 4 grupos "de canal" (TERCEROS/AGENTES/DISTRIBUIDORES/SECURITY DATA). No toca
+-- COMERCIAL, GRUPO CONVENIOS, LICENCIAS TELCONET ni GRUPO GEEKTECH, que tienen sus propias reglas.
+stg_fact_facturacion_test AS (
+    SELECT
+        sff.*,
+        CASE
+            WHEN sff.grupo_vendedor IN ('GRUPO SECURITY DATA', 'GRUPO TERCEROS', 'GRUPO DISTRIBUIDORES', 'GRUPO AGENTES')
+                 AND cig_0.grupo_canal_indirecto IS NOT NULL
+            THEN cig_0.grupo_canal_indirecto
+            ELSE sff.grupo_vendedor
+        END AS grupo_vendedor_test
+    FROM stg_fact_facturacion sff
+    LEFT JOIN canal_indirecto_por_documento cig_0 ON sff.codigo_documento = cig_0.codigo_documento
+),
+
 -- Grupo vendedor de la factura original por documento + artículo, para que las
 -- notas de crédito (is_nc) hereden la clasificación de su factura en vez de
 -- recalcularla (sus comentarios/codigo_descuento no siempre replican los de la factura)
@@ -137,8 +222,9 @@ grupo_vendedor_original AS (
     SELECT
         codigo_documento,
         id_articulo,
-        MAX(grupo_vendedor) AS grupo_vendedor_original
-    FROM stg_fact_facturacion
+        MAX(grupo_vendedor) AS grupo_vendedor_original,
+        MAX(grupo_vendedor_test) AS grupo_vendedor_test_original
+    FROM stg_fact_facturacion_test
     WHERE NOT is_nc
     GROUP BY codigo_documento, id_articulo
 ),
@@ -164,8 +250,12 @@ stg_fact_facturacion_nc AS (
         CASE
             WHEN sff.is_nc AND gvo.grupo_vendedor_original IS NOT NULL THEN gvo.grupo_vendedor_original
             ELSE sff.grupo_vendedor
-        END AS grupo_vendedor
-    FROM stg_fact_facturacion sff
+        END AS grupo_vendedor,
+        CASE
+            WHEN sff.is_nc AND gvo.grupo_vendedor_test_original IS NOT NULL THEN gvo.grupo_vendedor_test_original
+            ELSE sff.grupo_vendedor_test
+        END AS grupo_vendedor_test
+    FROM stg_fact_facturacion_test sff
     LEFT JOIN grupo_vendedor_original gvo
         ON sff.codigo_documento = gvo.codigo_documento
         AND sff.id_articulo = gvo.id_articulo
@@ -218,6 +308,7 @@ stg_fact_subtotal AS (
     --  Validación (debería dar 0 o muy cercano)
     --  SUM(subtotal_articulo + ajuste_centavos) OVER (PARTITION BY id_factura) - total_sin_iva AS residuo_control,
         grupo_vendedor,
+        grupo_vendedor_test,
         descuento_articulo
     FROM stg_fact_facturacion_correccion
 ),
@@ -242,6 +333,7 @@ SELECT
     porcentaje_descuento,
     porcentaje_iva,
     grupo_vendedor,
+    grupo_vendedor_test,
     descuento_articulo,
     subtotal_articulo,
     total_iva,
