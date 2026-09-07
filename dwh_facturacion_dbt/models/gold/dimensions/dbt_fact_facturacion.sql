@@ -215,15 +215,16 @@ stg_fact_facturacion_test AS (
     LEFT JOIN canal_indirecto_por_documento cig_0 ON sff.codigo_documento = cig_0.codigo_documento
 ),
 
--- Grupo vendedor de la factura original por documento + artículo, para que las
--- notas de crédito (is_nc) hereden la clasificación de su factura en vez de
+-- Grupo vendedor e id_codigo de la factura original por documento + artículo, para que
+-- las notas de crédito (is_nc) hereden la clasificación de su factura en vez de
 -- recalcularla (sus comentarios/codigo_descuento no siempre replican los de la factura)
 grupo_vendedor_original AS (
     SELECT
         codigo_documento,
         id_articulo,
         MAX(grupo_vendedor) AS grupo_vendedor_original,
-        MAX(grupo_vendedor_test) AS grupo_vendedor_test_original
+        MAX(grupo_vendedor_test) AS grupo_vendedor_test_original,
+        MAX(id_codigo) AS id_codigo_original
     FROM stg_fact_facturacion_test
     WHERE NOT is_nc
     GROUP BY codigo_documento, id_articulo
@@ -238,7 +239,10 @@ stg_fact_facturacion_nc AS (
         sff.id_vendedor,
         sff.id_articulo,
         sff.id_sucursal,
-        sff.id_codigo,
+        CASE
+            WHEN sff.is_nc AND gvo.id_codigo_original IS NOT NULL THEN gvo.id_codigo_original
+            ELSE sff.id_codigo
+        END AS id_codigo,
         sff.cantidad_articulos,
         sff.valor_unitario,
         sff.porcentaje_descuento,

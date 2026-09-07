@@ -366,6 +366,11 @@ models:
       factura original con el mismo `codigo_documento` + `id_articulo` (calculada con las reglas
       1-11) y se usa ese `grupo_vendedor` en vez de recalcularlo; si no hay línea de factura original
       con ese artículo (p. ej. fue excluida), se mantiene el resultado de las reglas 1-11 para la NC.
+
+      El mismo mecanismo de herencia aplica a `id_codigo`: una nota de crédito toma el `id_codigo`
+      de la línea de la factura original con el mismo `codigo_documento` + `id_articulo` en vez de
+      recalcularlo con sus propios `comentario_3`/`codigo_descuento`; si no hay línea de factura
+      original con ese artículo, se mantiene el cálculo normal (reglas de `id_codigo` de la NC).
     columns:
       - name: id_factura
         description: |
@@ -451,6 +456,11 @@ models:
           1. Cruce directo de `comentario_3` con `dbt_dim_codigos.codigo`.
           2. `'CONVE.FACT.MANUAL'` para facturas de convenio (descuento `'ALIANZA'`).
           3. `'MANUAL.FACT.MANUAL'` como valor por defecto cuando no hay código registrado.
+
+          **Herencia en notas de crédito:** para una nota de crédito (`is_nc`) se usa el `id_codigo`
+          de la línea de la factura original con el mismo `codigo_documento` + `id_articulo` en vez
+          de recalcularlo (ver descripción del modelo), ya que el `comentario_3`/`codigo_descuento`
+          de la NC no siempre replica el de la factura que anula.
 
       - name: cantidad_articulos
         description: "Cantidad de unidades del artículo incluidas en la línea de la factura."
