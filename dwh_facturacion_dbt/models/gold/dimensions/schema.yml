@@ -208,7 +208,13 @@ models:
           o indicadores de clasificación de venta (`'COMERCIAL'`, `'F.E.F.A.V.'`, etc.).
 
       - name: codigo_descuento
-        description: "Código de descuento extraído del `comentario_2`. Valor `'SIN CODIGO DE DESCUENTO'` si no aplica."
+        description: |
+          Código de descuento extraído del `comentario_2`. Valor `'SIN CODIGO DE DESCUENTO'` si no aplica.
+
+          **Herencia en notas de crédito:** una nota de crédito (`is_nc`) no siempre replica el
+          `codigo_descuento` de la factura que anula. Por eso se usa el `codigo_descuento` de la
+          factura original con el mismo `codigo_documento` en vez del propio; si no existe una
+          factura original (p. ej. fue excluida), se mantiene el valor propio de la NC.
 
       - name: estado_factura
         description: |

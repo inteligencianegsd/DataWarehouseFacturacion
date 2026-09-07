@@ -37,6 +37,18 @@ notas_credito AS (
     WHERE is_nc
 ),
 
+-- codigo_descuento de la factura original por codigo_documento, para que las notas de
+-- crédito (is_nc) lo hereden en vez de usar el propio (no siempre replica el de la
+-- factura que anulan, ver herencia análoga en dbt_fact_facturacion.id_codigo/grupo_vendedor)
+codigo_descuento_original AS (
+    SELECT
+        codigo_documento,
+        MAX(codigo_descuento) AS codigo_descuento_original
+    FROM stg_facturas
+    WHERE NOT is_nc
+    GROUP BY codigo_documento
+),
+
 camunda_dedup AS (
     SELECT *
         FROM (
@@ -79,7 +91,10 @@ enriched_facturas AS (
         t_0.comentario_1,
         t_0.comentario_2,
         t_0.comentario_3,
-        t_0.codigo_descuento,
+        CASE
+            WHEN t_0.is_nc AND cdo_0.codigo_descuento_original IS NOT NULL THEN cdo_0.codigo_descuento_original
+            ELSE t_0.codigo_descuento
+        END AS codigo_descuento,
         CASE WHEN nc_0.codigo_documento IS NOT NULL THEN 'ANULADO' ELSE 'FACTURADO' END AS estado_factura,
         CASE
             WHEN fo_0.tipo_venta IS NOT NULL THEN fo_0.tipo_venta
@@ -89,6 +104,7 @@ enriched_facturas AS (
     LEFT JOIN notas_credito nc_0 ON t_0.codigo_documento = nc_0.codigo_documento
     LEFT JOIN fenix_dedup fo_0 ON t_0.codigo_documento = fo_0.codigo_documento
     LEFT JOIN {{ref('dbt_dim_codigos')}} dc_0 ON t_0.comentario_3 = dc_0.codigo
+    LEFT JOIN codigo_descuento_original cdo_0 ON t_0.codigo_documento = cdo_0.codigo_documento
 )
 
 SELECT
