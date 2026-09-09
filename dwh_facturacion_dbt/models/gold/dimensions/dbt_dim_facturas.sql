@@ -1,14 +1,22 @@
 {{ config(
-    materialized='table',
+    materialized='incremental',
+    incremental_strategy='delete+insert',
+    unique_key='codigo_factura',
     alias='dim_facturas',
     pre_hook=[
-        "CREATE SEQUENCE IF NOT EXISTS analytics_gold.dim_facturas_id_factura_seq",
-        "ALTER TABLE IF EXISTS analytics_gold.dim_facturas DROP CONSTRAINT IF EXISTS uq_dim_facturas_codigo_factura",
-        "ALTER TABLE IF EXISTS analytics_gold.dim_facturas DROP CONSTRAINT IF EXISTS dim_facturas_pkey"
+        "CREATE SEQUENCE IF NOT EXISTS analytics_gold.dim_facturas_id_factura_seq"
     ],
     post_hook=[
-        "ALTER TABLE analytics_gold.dim_facturas ADD PRIMARY KEY (id_factura)",
-        "ALTER TABLE analytics_gold.dim_facturas ADD CONSTRAINT uq_dim_facturas_codigo_factura UNIQUE (codigo_factura)"
+        "DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dim_facturas_pkey') THEN
+                ALTER TABLE analytics_gold.dim_facturas ADD PRIMARY KEY (id_factura);
+            END IF;
+        END $$;",
+        "DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_dim_facturas_codigo_factura') THEN
+                ALTER TABLE analytics_gold.dim_facturas ADD CONSTRAINT uq_dim_facturas_codigo_factura UNIQUE (codigo_factura);
+            END IF;
+        END $$;"
     ]
 ) }}
 
@@ -108,14 +116,23 @@ enriched_facturas AS (
 )
 
 SELECT
+    -- Preserva el id_factura ya asignado (busca por llave natural en la tabla actual); solo
+    -- consume la secuencia para facturas genuinamente nuevas. Ver [[project-secuencias-dimensiones-gold]].
+    {% if is_incremental() %}
+    COALESCE(existing.id_factura, nextval('analytics_gold.dim_facturas_id_factura_seq')) AS id_factura,
+    {% else %}
     nextval('analytics_gold.dim_facturas_id_factura_seq') AS id_factura,
-    codigo_factura,
-    codigo_documento,
-    numero_factura,
-    comentario_1,
-    comentario_2,
-    comentario_3,
-    codigo_descuento,
-    estado_factura,
-    tipo_venta
+    {% endif %}
+    enriched_facturas.codigo_factura,
+    enriched_facturas.codigo_documento,
+    enriched_facturas.numero_factura,
+    enriched_facturas.comentario_1,
+    enriched_facturas.comentario_2,
+    enriched_facturas.comentario_3,
+    enriched_facturas.codigo_descuento,
+    enriched_facturas.estado_factura,
+    enriched_facturas.tipo_venta
 FROM enriched_facturas
+{% if is_incremental() %}
+LEFT JOIN {{ this }} AS existing ON enriched_facturas.codigo_factura = existing.codigo_factura
+{% endif %}
