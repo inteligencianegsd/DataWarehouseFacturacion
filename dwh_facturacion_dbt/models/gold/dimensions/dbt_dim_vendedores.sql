@@ -1,22 +1,14 @@
 {{ config(
-    materialized='incremental',
-    incremental_strategy='delete+insert',
-    unique_key='codigo_vendedor',
+    materialized='table',
     alias='dim_vendedores',
     pre_hook=[
-        "CREATE SEQUENCE IF NOT EXISTS analytics_gold.dim_vendedores_id_vendedor_seq"
+        "CREATE SEQUENCE IF NOT EXISTS analytics_gold.dim_vendedores_id_vendedor_seq",
+        "ALTER TABLE IF EXISTS analytics_gold.dim_vendedores DROP CONSTRAINT IF EXISTS uq_dim_vendedores_codigo_vendedor",
+        "ALTER TABLE IF EXISTS analytics_gold.dim_vendedores DROP CONSTRAINT IF EXISTS dim_vendedores_pkey"
     ],
     post_hook=[
-        "DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dim_vendedores_pkey') THEN
-                ALTER TABLE analytics_gold.dim_vendedores ADD PRIMARY KEY (id_vendedor);
-            END IF;
-        END $$;",
-        "DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_dim_vendedores_codigo_vendedor') THEN
-                ALTER TABLE analytics_gold.dim_vendedores ADD CONSTRAINT uq_dim_vendedores_codigo_vendedor UNIQUE (codigo_vendedor);
-            END IF;
-        END $$;"
+        "ALTER TABLE analytics_gold.dim_vendedores ADD PRIMARY KEY (id_vendedor)",
+        "ALTER TABLE analytics_gold.dim_vendedores ADD CONSTRAINT uq_dim_vendedores_codigo_vendedor UNIQUE (codigo_vendedor)"
     ]
 ) }}
 
@@ -30,16 +22,8 @@ WITH stg_vendedores AS (
 
 
 SELECT
-    -- Preserva el id_vendedor ya asignado (busca por llave natural en la tabla actual); solo
-    -- consume la secuencia para vendedores genuinamente nuevos. Ver [[project-secuencias-dimensiones-gold]].
-    {% if is_incremental() %}
-    COALESCE(existing.id_vendedor, nextval('analytics_gold.dim_vendedores_id_vendedor_seq')) AS id_vendedor,
-    {% else %}
+    -- Inyectamos el siguiente valor de la secuencia para satisfacer el INSERT de dbt
     nextval('analytics_gold.dim_vendedores_id_vendedor_seq') AS id_vendedor,
-    {% endif %}
-    stg_vendedores.codigo_vendedor,
-    stg_vendedores.nombre_vendedor
+    codigo_vendedor,
+    nombre_vendedor
 FROM stg_vendedores
-{% if is_incremental() %}
-LEFT JOIN {{ this }} AS existing ON stg_vendedores.codigo_vendedor = existing.codigo_vendedor
-{% endif %}
