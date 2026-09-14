@@ -21,3 +21,8 @@ dwh_facturacion_dbt/target/
 dwh_facturacion_dbt/dbt_packages/
 dwh_facturacion_dbt/logs/
 dwh_facturacion_dbt/package-lock.yml
+
+# Logs y respaldos (no versionar)
+*.log
+backup_quanta/
+logs_local_run/
