@@ -477,3 +477,39 @@ models:
           - `'NUEVO'`: primera aprobación del producto para el solicitante.
           - `'RENOVACION'`: aprobaciones subsiguientes.
           - `'N/A'`: casos borde donde la fecha del trámite coincide exactamente con la primera aprobación.
+
+  - name: dbt_fenix_rencon
+    description: |
+      Modelo de la capa Silver con los rubros de asientos contables provenientes de
+      Fenix (security_data.rencon). Alimenta, junto con dbt_fenix_enccon, el modelo
+      gold fact_estado_resultados.
+    columns:
+      - name: id_sec
+        description: "Llave primaria del rubro, proviene directamente del origen (Fenix)."
+        tests:
+          - unique
+          - not_null
+      - name: codigo_cuenta
+        description: "Código de cuenta contable del rubro (TRIM de codcta)."
+      - name: importe
+        description: "Monto del rubro contable."
+      - name: codigo_asiento
+        description: "Código del asiento contable al que pertenece el rubro (TRIM de codasi), cruza con dbt_fenix_enccon.codigo_asiento."
+      - name: fecha_asiento
+        description: "Fecha contable del rubro (fecasi)."
+
+  - name: dbt_fenix_enccon
+    description: |
+      Modelo de la capa Silver con los encabezados de asientos contables provenientes
+      de Fenix (security_data.enccon). Alimenta, junto con dbt_fenix_rencon, el modelo
+      gold fact_estado_resultados.
+    columns:
+      - name: id_codasi
+        description: "Llave primaria del encabezado de asiento, proviene directamente del origen (Fenix)."
+        tests:
+          - unique
+          - not_null
+      - name: codigo_asiento
+        description: "Código único del asiento contable (TRIM de codasi), cruza con dbt_fenix_rencon.codigo_asiento."
+      - name: fecha_asiento
+        description: "Fecha contable del asiento (fecasi)."

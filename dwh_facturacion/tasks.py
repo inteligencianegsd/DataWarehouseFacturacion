@@ -55,6 +55,8 @@ from dwh_facturacion.pipelines.bronze.bronze_vendedores_pipeline import BronzeVe
 from dwh_facturacion.pipelines.bronze.bronze_tranfac_pipeline import BronzeTranfacPipeline
 from dwh_facturacion.pipelines.bronze.bronze_articulos_pipeline import BronzeArticulosPipeline
 from dwh_facturacion.pipelines.bronze.bronze_codigos_pipeline import BronzeCodigosPipeline
+from dwh_facturacion.pipelines.bronze.bronze_rencon_pipeline import BronzeRenconPipeline
+from dwh_facturacion.pipelines.bronze.bronze_enccon_pipeline import BronzeEnconPipeline
 
 from airflow.hooks.base import BaseHook
 
@@ -229,6 +231,36 @@ def run_bronze_codigos(
     """
     app_config = _get_app_config(db_alias, run_mode)
     BronzeCodigosPipeline(app_config).run()
+
+
+# ---------------------------------------------------------------------------
+# Bronze — CONTABILIDAD (Fenix)
+# ---------------------------------------------------------------------------
+
+def run_bronze_rencon(
+    db_alias: DBAliasType = "QUANTA",
+    run_mode: RunMode = RunMode.INCREMENTAL,
+) -> None:
+    """Carga la tabla bronze.fenix_rencon (rubros de asientos contables).
+
+    - INCREMENTAL: rubros nuevos desde el último id_sec cargado.
+    - INICIAL:     carga histórica completa desde FENIX a partir de 2024-01-01.
+    """
+    app_config = _get_app_config(db_alias, run_mode)
+    BronzeRenconPipeline(app_config).run()
+
+
+def run_bronze_enccon(
+    db_alias: DBAliasType = "QUANTA",
+    run_mode: RunMode = RunMode.INCREMENTAL,
+) -> None:
+    """Carga la tabla bronze.fenix_enccon (encabezados de asientos contables).
+
+    - INCREMENTAL: encabezados nuevos o modificados desde la última fecha cargada.
+    - INICIAL:     carga histórica completa desde FENIX a partir de 2024-01-01.
+    """
+    app_config = _get_app_config(db_alias, run_mode)
+    BronzeEnconPipeline(app_config).run()
 
 
 # ---------------------------------------------------------------------------

@@ -43,6 +43,23 @@ models:
 
 seeds:
   dwh_facturacion_dbt:
+    contable_cuentas_especiales:
+      +schema: features
+      +column_types:
+        anio: integer
+        seccion: varchar(20)
+        codasi: varchar(20)
+        motivo: varchar(255)
+
+    contable_exclusiones_codasi:
+      +schema: features
+      +column_types:
+        anio: integer
+        seccion: varchar(20)
+        codasi_patron: varchar(20)
+        tipo_match: varchar(10)
+        motivo: varchar(255)
+
     reasignacion_periodo_fiscal:
       +schema: features
       +column_types:

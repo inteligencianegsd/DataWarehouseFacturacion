@@ -1,0 +1,11 @@
+anio,seccion,codasi,motivo
+2024,PROVISIONES,2459827-T,Asiento de provision del ano fiscal 2024
+2025,PROVISIONES,3756011-T,Asiento de provision del ano fiscal 2025
+2026,PROVISIONES,5168853-T,Asiento de provision del ano fiscal 2026
+2024,REGULACIONES,3752105-T,Asiento de regulacion del ano fiscal 2024
+2024,REGULACIONES,3752150-T,Asiento de regulacion del ano fiscal 2024
+2025,REGULACIONES,4673200-T,Asiento de regulacion del ano fiscal 2025
+2026,REGULACIONES,3752105-T,Asiento de regulacion del ano fiscal 2026
+2026,REGULACIONES,3752150-T,Asiento de regulacion del ano fiscal 2026
+2024,CIERRE_DICIEMBRE,3863666-T,Asiento de cierre de diciembre 2024 usado como override en VENTA ACTIVOS/COSTOS/GASTOS/OTROS/DEPRE_AMOR
+2025,CIERRE_DICIEMBRE,5378686-T,Asiento de cierre de diciembre 2025 usado como override en VENTA ACTIVOS/COSTOS/GASTOS/OTROS/DEPRE_AMOR

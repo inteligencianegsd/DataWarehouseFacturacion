@@ -528,3 +528,41 @@ models:
           Monto de IVA correspondiente a esta línea de factura.
 
           Se calcula como: `ROUND(subtotal_articulo × porcentaje_iva / 100, 2)`.
+
+  - name: dbt_fact_estado_resultados
+    description: |
+      Estado de resultados mensual por cuenta, construido a partir de la contabilidad
+      de Fenix (`dbt_fenix_rencon` + `dbt_fenix_enccon`) y de `dbt_fact_facturacion`.
+      Reemplaza la query ODBC directa a Fenix64 que antes vivía en Power Query.
+
+      **Cuentas (columna `cuenta`):**
+      - `PROVISIONES` / `REGULACIONES`: asiento(s) de cierre/regulación del año fiscal
+        (identificados por `codasi` en el seed `contable_cuentas_especiales`), con signo
+        invertido respecto al rubro contable. `PROVISIONES` además genera una fila de
+        reversión (signo invertido otra vez, fecha desplazada -1 mes).
+      - `VENTA ACTIVOS`, `COSTOS`, `GASTOS`, `OTROS INGRESOS Y GASTOS`, `DEPRE/AMOR`: suma
+        de rubros por clase de cuenta contable (`codigo_cuenta`). En diciembre, si el año
+        tiene un asiento de cierre definido (`contable_cuentas_especiales`, sección
+        `CIERRE_DICIEMBRE`), el total del mes se recalcula como
+        `importe del asiento de cierre − suma de todos los rubros del mes`, igual que en
+        la query original. `GASTOS` y `DEPRE/AMOR` además excluyen los `codasi` marcados
+        en el seed `contable_exclusiones_codasi` (por año, con match exacto o por prefijo).
+      - `INGRESOS`: no viene de contabilidad, es `SUM(subtotal_articulo)` de
+        `dbt_fact_facturacion` agrupado por `fecha_emision`.
+
+      Solo incluye contabilidad desde 2024-01-01 (carga del bronze). No filtra por año
+      superior: años futuros entran automáticamente sin tocar este modelo, a diferencia
+      de la query original que tenía la lista de años hardcodeada.
+    columns:
+      - name: fecha
+        description: Fecha del rubro contable (o de emisión, para INGRESOS).
+        tests:
+          - not_null
+      - name: valor
+        description: Monto del rubro, ya con el signo/ajuste aplicado según la cuenta.
+        tests:
+          - not_null
+      - name: cuenta
+        description: "Categoría del estado de resultados: PROVISIONES, REGULACIONES, VENTA ACTIVOS, COSTOS, GASTOS, OTROS INGRESOS Y GASTOS, DEPRE/AMOR o INGRESOS."
+        tests:
+          - not_null

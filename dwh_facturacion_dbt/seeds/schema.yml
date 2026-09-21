@@ -22,6 +22,59 @@ seeds:
         tests:
           - not_null
 
+  - name: contable_cuentas_especiales
+    description: >
+      Configuración anual de códigos de asiento (codasi) contables especiales usados
+      en el cálculo del estado de resultados (fact_estado_resultados): PROVISIONES y
+      REGULACIONES identifican el/los asiento(s) de cierre de cada año fiscal que se
+      excluyen del cálculo general y se tratan aparte (reversión al mes siguiente en
+      el caso de provisiones); CIERRE_DICIEMBRE identifica el asiento de cierre de
+      diciembre que se usa como override en VENTA ACTIVOS, COSTOS, GASTOS, OTROS
+      INGRESOS Y GASTOS y DEPRE/AMOR. Se debe actualizar cada cierre de año fiscal.
+    columns:
+      - name: anio
+        description: Año fiscal al que aplica la fila.
+        tests:
+          - not_null
+      - name: seccion
+        description: "Sección del estado de resultados a la que aplica: PROVISIONES, REGULACIONES o CIERRE_DICIEMBRE."
+        tests:
+          - not_null
+      - name: codasi
+        description: Código del asiento contable (security_data.enccon.codasi / rencon.codasi) especial para ese año/sección.
+        tests:
+          - not_null
+      - name: motivo
+        description: Descripción del motivo por el que este asiento se trata como especial.
+
+  - name: contable_exclusiones_codasi
+    description: >
+      Configuración anual de códigos de asiento (codasi) a excluir del cálculo de
+      GASTOS y DEPRE/AMOR en el estado de resultados (fact_estado_resultados), por
+      corresponder a ajustes puntuales que no deben contarse en esas secciones.
+      tipo_match indica si codasi_patron se compara como prefijo (PREFIJO, LIKE
+      'patron%') o como valor exacto (EXACTO, =). Se debe actualizar cada cierre
+      de año fiscal.
+    columns:
+      - name: anio
+        description: Año fiscal al que aplica la exclusión.
+        tests:
+          - not_null
+      - name: seccion
+        description: "Sección del estado de resultados de la que se excluye el asiento: GASTOS o DEPRE_AMOR."
+        tests:
+          - not_null
+      - name: codasi_patron
+        description: Código de asiento (o prefijo de código) a excluir.
+        tests:
+          - not_null
+      - name: tipo_match
+        description: "Forma de comparar codasi_patron contra el codasi real: PREFIJO (LIKE 'patron%') o EXACTO (=)."
+        tests:
+          - not_null
+      - name: motivo
+        description: Descripción del motivo de la exclusión.
+
   - name: fenix_articulos_corregidos
     description: >
       Artículos de Fenix con correcciones aplicadas en los campos de familia, tipo_plan

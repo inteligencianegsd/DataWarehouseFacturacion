@@ -308,6 +308,64 @@ sources:
           - name: vigencia
             description: Periodo de vigencia o validez del producto.
 
+      # ==========================================
+      # TABLA: RENCON (RUBROS DE ASIENTOS CONTABLES)
+      # ==========================================
+      - name: fenix_rencon
+        description: >
+          Rubros/detalle de asientos contables del sistema Fenix (security_data.rencon).
+          Alimenta el estado de resultados. La carga incremental funciona con id_sec
+          (autoincrement en origen) y no con fecasi, porque fecasi es la fecha contable
+          y puede venir retroactiva en correcciones/ajustes. Solo se carga historia desde
+          el 2024-01-01 (fecasi), no el histórico completo del origen.
+        columns:
+          - name: id_sec
+            description: "Llave primaria autogenerada en el origen (Fenix)."
+            tests:
+              - unique
+              - not_null
+          - name: creation_date
+            description: "Metadato: Fecha y hora de inserción en la capa Bronze."
+          - name: codcomp
+            description: "Código de la compañía/empresa asociada al asiento."
+          - name: codcta
+            description: "Código de cuenta contable del rubro. El primer dígito indica la clase de cuenta (4=ingresos, 5=costos, 6=gastos, 7=otros ingresos/egresos)."
+          - name: importe
+            description: "Monto del rubro contable."
+          - name: codasi
+            description: "Código del asiento contable al que pertenece el rubro (Clave foránea hacia fenix_enccon.codasi)."
+          - name: fecasi
+            description: "Fecha contable del asiento."
+          - name: origen
+            description: "Módulo/origen del sistema que generó el asiento."
+
+      # ==========================================
+      # TABLA: ENCCON (ENCABEZADOS DE ASIENTOS CONTABLES)
+      # ==========================================
+      - name: fenix_enccon
+        description: >
+          Encabezados de asientos contables del sistema Fenix (security_data.enccon).
+          Alimenta el estado de resultados junto con fenix_rencon. La carga incremental
+          funciona con la columna fecha (timestamp de auditoría con ON UPDATE, a diferencia
+          de rencon sí captura modificaciones posteriores del asiento, ej. verificación/cierre).
+          Solo se carga historia desde el 2024-01-01 (fecasi), no el histórico completo del origen.
+        columns:
+          - name: id_codasi
+            description: "Llave primaria autogenerada en el origen (Fenix)."
+            tests:
+              - unique
+              - not_null
+          - name: creation_date
+            description: "Metadato: Fecha y hora de inserción en la capa Bronze."
+          - name: codcomp
+            description: "Código de la compañía/empresa asociada al asiento."
+          - name: codasi
+            description: "Código único del asiento contable (Clave foránea desde fenix_rencon.codasi)."
+          - name: fecasi
+            description: "Fecha contable del asiento."
+          - name: fecha
+            description: "Fecha y hora de inserción/última modificación del asiento en el origen (Fenix). Usada como cursor incremental."
+
   - name: camunda_bronze
     schema: analytics_bronze
     description: >
