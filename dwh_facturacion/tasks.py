@@ -57,8 +57,14 @@ from dwh_facturacion.pipelines.bronze.bronze_articulos_pipeline import BronzeArt
 from dwh_facturacion.pipelines.bronze.bronze_codigos_pipeline import BronzeCodigosPipeline
 from dwh_facturacion.pipelines.bronze.bronze_rencon_pipeline import BronzeRenconPipeline
 from dwh_facturacion.pipelines.bronze.bronze_enccon_pipeline import BronzeEnconPipeline
-
-from airflow.hooks.base import BaseHook
+from dwh_facturacion.pipelines.backfill.reconciliation_pipeline import ReconciliationPipeline
+from dwh_facturacion.pipelines.backfill.specs import (
+    FACTURAS_SPEC,
+    CLIENTES_SPEC,
+    VENDEDORES_SPEC,
+    RENCON_SPEC,
+    ENCCON_SPEC,
+)
 
 import smtplib
 from datetime import datetime
@@ -88,13 +94,20 @@ def set_conn_map(conn_map: dict[str, str]) -> None:
     _CONN_MAP = conn_map
 
 
-def _get_app_config(db_alias: DBAliasType, run_mode: RunMode) -> AppConfig:
+def _ensure_runtime_configured() -> None:
+    """Inicializa el logger y, si el DAG llamó set_conn_map, inyecta las conexiones
+    de Airflow como env vars. Llamado por cada task (run_bronze_*, run_backfill_*)
+    antes de tocar cualquier base de datos."""
     global _LOGGER_INITIALIZED
     if not _LOGGER_INITIALIZED:
         setup_logger()
         _LOGGER_INITIALIZED = True
     if _CONN_MAP:
         configure_from_airflow_connections(_CONN_MAP)
+
+
+def _get_app_config(db_alias: DBAliasType, run_mode: RunMode) -> AppConfig:
+    _ensure_runtime_configured()
     return AppConfig(db_alias=db_alias, run_mode=run_mode)
 
 
@@ -116,7 +129,7 @@ def configure_from_airflow_connections(conn_map: dict[str, str]) -> None:
             "QUANTA":  "quanta_db",
         })
     """
-    
+    from airflow.hooks.base import BaseHook
 
     for prefix, conn_id in conn_map.items():
         conn = BaseHook.get_connection(conn_id)
@@ -279,6 +292,74 @@ def run_bronze_operatividad(
 
     app_config = _get_app_config(db_alias, run_mode)
     BronzeOperatividadPipeline(app_config).run()
+
+
+# ---------------------------------------------------------------------------
+# Backfill / reconciliación
+# ---------------------------------------------------------------------------
+#
+# Red de seguridad para registros que el incremental regular nunca recoge (llegan a
+# Fenix "atrasados" respecto al watermark de fecha ya superado). No reemplaza al
+# incremental: corre aparte, ver dwh_facturacion.pipelines.backfill.reconciliation_pipeline.
+
+def run_backfill_facturas(
+    db_alias: DBAliasType = "QUANTA",
+    lookback_days: int = 30,
+) -> list[str]:
+    """Reconcilia facturas de los últimos `lookback_days` días entre Fenix y bronze.
+
+    Retorna la lista de numfac recuperados (vacía si no había nada que recuperar).
+    """
+    _ensure_runtime_configured()
+    return ReconciliationPipeline(FACTURAS_SPEC, lookback_days).run(db_alias)
+
+
+def run_backfill_clientes(
+    db_alias: DBAliasType = "QUANTA",
+    lookback_days: int = 30,
+) -> list[str]:
+    """Reconcilia clientes de los últimos `lookback_days` días entre Fenix y bronze.
+
+    Retorna la lista de codcli recuperados (vacía si no había nada que recuperar).
+    """
+    _ensure_runtime_configured()
+    return ReconciliationPipeline(CLIENTES_SPEC, lookback_days).run(db_alias)
+
+
+def run_backfill_vendedores(
+    db_alias: DBAliasType = "QUANTA",
+    lookback_days: int = 30,
+) -> list[str]:
+    """Reconcilia vendedores de los últimos `lookback_days` días entre Fenix y bronze.
+
+    Retorna la lista de codven recuperados (vacía si no había nada que recuperar).
+    """
+    _ensure_runtime_configured()
+    return ReconciliationPipeline(VENDEDORES_SPEC, lookback_days).run(db_alias)
+
+
+def run_backfill_rencon(
+    db_alias: DBAliasType = "QUANTA",
+    lookback_days: int = 30,
+) -> list[str]:
+    """Reconcilia rencon de los últimos `lookback_days` días entre Fenix y bronze.
+
+    Retorna la lista de id_sec recuperados (vacía si no había nada que recuperar).
+    """
+    _ensure_runtime_configured()
+    return ReconciliationPipeline(RENCON_SPEC, lookback_days).run(db_alias)
+
+
+def run_backfill_enccon(
+    db_alias: DBAliasType = "QUANTA",
+    lookback_days: int = 30,
+) -> list[str]:
+    """Reconcilia enccon de los últimos `lookback_days` días entre Fenix y bronze.
+
+    Retorna la lista de id_codasi recuperados (vacía si no había nada que recuperar).
+    """
+    _ensure_runtime_configured()
+    return ReconciliationPipeline(ENCCON_SPEC, lookback_days).run(db_alias)
 
 
 # ---------------------------------------------------------------------------
