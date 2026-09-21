@@ -529,7 +529,7 @@ models:
 
           Se calcula como: `ROUND(subtotal_articulo × porcentaje_iva / 100, 2)`.
 
-  - name: dbt_fact_estado_resultados
+  - name: dbt_fact_cuentas
     description: |
       Estado de resultados mensual por cuenta, construido a partir de la contabilidad
       de Fenix (`dbt_fenix_rencon` + `dbt_fenix_enccon`) y de `dbt_fact_facturacion`.
