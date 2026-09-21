@@ -13,8 +13,11 @@ set PYTHONPATH=%~dp0
 set LOGDIR=%~dp0logs_local_run
 if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 
-for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set DT=%%I
-set TS=%DT:~0,8%_%DT:~8,6%
+for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set TS=%%I
+if "%TS%"=="" (
+    echo ERROR: no se pudo generar el timestamp para el log.
+    exit /b 1
+)
 set LOGFILE=%LOGDIR%\run_%TS%.log
 
 echo ===================================================== > "%LOGFILE%"
@@ -58,7 +61,7 @@ echo =====================================================
 echo   CORRIDA LOCAL COMPLETADA CON ADVERTENCIAS (ver log)
 echo   Log: %LOGFILE%
 echo =====================================================
-goto :eof
+exit /b 1
 
 :fin_error
 echo.
