@@ -17,7 +17,13 @@ def get_engine(prefix: str):
         config = get_db_config(prefix)
         url = build_connection_url(config)
         extra = _CONNECT_ARGS.get(prefix, {})
-        _engine_cache[prefix] = create_engine(url, echo=False, hide_parameters=True, **extra)
+        # pool_pre_ping: valida la conexion antes de reutilizarla del pool. Sin esto, una
+        # conexion que quedo inactiva mientras un pipeline anterior cargaba un batch grande
+        # (minutos) puede ser cerrada por el servidor/red, y el siguiente query en el mismo
+        # proceso falla con "Lost connection to MySQL server during query" en vez de reconectar.
+        _engine_cache[prefix] = create_engine(
+            url, echo=False, hide_parameters=True, pool_pre_ping=True, **extra
+        )
     return _engine_cache[prefix]
 
 
