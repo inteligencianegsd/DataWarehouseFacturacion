@@ -41,6 +41,7 @@ cleaned_facturas AS (
             ELSE TRIM(codven) END
         AS codigo_vendedor,
         emision::date AS fecha_emision,
+        fecha_hora::time AS hora_emision,
         CASE WHEN TRIM(numfac) LIKE 'DV%' THEN TRUE ELSE FALSE END AS is_nc
 
     FROM {{ source("fenix_bronze", "fenix_facturas") }}
@@ -84,6 +85,7 @@ parsed_facturas AS (
         cf_0.total_iva,
         cf_0.codigo_vendedor,
         cf_0.fecha_emision,
+        cf_0.hora_emision,
 
         COALESCE(
             NULLIF(
@@ -158,6 +160,7 @@ enriched_facturas AS (
             ELSE pf.codigo_vendedor
         END AS codigo_vendedor,
         pf.fecha_emision,
+        pf.hora_emision,
         grupo_vendedor_temp,
         CASE
             WHEN fs_0.id_sucursal IS NOT NULL THEN fs_0.id_sucursal
@@ -192,6 +195,7 @@ SELECT
     total_iva,
     codigo_vendedor,
     fecha_emision,
+    hora_emision,
     id_sucursal,
     grupo_vendedor_temp,
     is_nc

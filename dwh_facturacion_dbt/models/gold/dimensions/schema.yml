@@ -403,6 +403,12 @@ models:
           Se usa para auditoría y para comparar con `fecha_emision` cuando existe un ajuste
           por cierre de período.
 
+      - name: hora_emision_fenix
+        description: |
+          Hora de emisión (tipo TIME, HH:MM:SS) de la factura en Fenix, tomada del campo
+          `fecha_hora` del origen. Acompaña a `fecha_emision_fenix` y no se ve afectada por
+          los ajustes de período fiscal.
+
       - name: id_cliente
         description: |
           Clave surrogate del cliente asociado a la factura. Permite relacionar la tabla de

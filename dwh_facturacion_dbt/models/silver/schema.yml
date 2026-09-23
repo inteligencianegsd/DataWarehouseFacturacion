@@ -191,6 +191,9 @@ models:
       - name: fecha_emision
         description: "Fecha de emisión de la factura en formato DATE. Extraída del campo `emision` del origen."
 
+      - name: hora_emision
+        description: "Hora de emisión (TIME, HH:MM:SS). Extraída del campo `fecha_hora` del origen."
+
       - name: id_sucursal
         description: |
           Identificador de la sucursal que emitió la factura, determinado cruzando `numero_serie` con

@@ -121,6 +121,7 @@ stg_fact_facturacion AS (
         f_0.codigo_documento,
         f_0.is_nc,
         f_0.fecha_emision as fecha_emision_fenix,
+        f_0.hora_emision AS hora_emision_fenix,
         -- Desplaza un mes atrás si la factura está en el seed
         CASE
             WHEN rpf_0.numero_factura IS NOT NULL
@@ -234,6 +235,7 @@ stg_fact_facturacion_nc AS (
     SELECT
         sff.id_factura,
         sff.fecha_emision_fenix,
+        sff.hora_emision_fenix,
         sff.fecha_emision,
         sff.id_cliente,
         sff.id_vendedor,
@@ -303,6 +305,7 @@ stg_fact_subtotal AS (
         valor_unitario,
         porcentaje_descuento,
         fecha_emision_fenix,
+        hora_emision_fenix,
         case
             when diferencia <> 0 and not excluir_ajuste_centavos then ROUND(subtotal_articulo + ajuste_centavos, 2)
             else subtotal_articulo
@@ -341,6 +344,7 @@ SELECT
     descuento_articulo,
     subtotal_articulo,
     total_iva,
-    fecha_emision_fenix
+    fecha_emision_fenix,
+    hora_emision_fenix
 
 FROM stg_fact_iva_articulo

@@ -16,6 +16,9 @@ models:
 
       - name: fecha_emision_fenix
         description: "Fecha de emisión original registrada en Fenix."
+      - name: hora_emision_fenix
+        description: "Hora de emisión (HH:MM:SS) registrada en Fenix, tomada de `fecha_hora`."
+
 
       - name: id_cliente
         description: "Clave surrogate del cliente. Referencia a `dbt_dim_clientes.id_cliente`."
@@ -68,6 +71,9 @@ models:
 
       - name: fecha_emision_fenix
         description: "Fecha de emisión original registrada en Fenix, sin ajustes de período fiscal."
+      - name: hora_emision_fenix
+        description: "Hora de emisión (HH:MM:SS) registrada en Fenix, tomada de `fecha_hora`."
+
 
       - name: id_cliente
         description: "Clave surrogate del cliente. Referencia a `dbt_dim_clientes.id_cliente`."
@@ -122,6 +128,9 @@ models:
 
       - name: fecha_emision_fenix
         description: "Fecha de emisión original registrada en Fenix."
+      - name: hora_emision_fenix
+        description: "Hora de emisión (HH:MM:SS) registrada en Fenix, tomada de `fecha_hora`."
+
 
       - name: id_cliente
         description: "Clave surrogate del cliente. Referencia a `dbt_dim_clientes.id_cliente`."
