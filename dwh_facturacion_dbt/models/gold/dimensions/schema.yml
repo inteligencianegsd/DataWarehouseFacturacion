@@ -354,19 +354,21 @@ models:
 
       **Asignación de grupo vendedor** (orden de precedencia):
       1. Reasignación manual (`reasignacion_grupo_vendedor`).
-      2. `'GRUPO CONVENIOS'`: `codigo_descuento` contiene `'ALIANZA'`, `'COLEGIOABOGADO'`, `'ANAMER'` o `'FEUE'`,
+      2. `'COMERCIAL'`: `codigo_descuento` empieza con `'CCQ'` (campaña CCQ: `CCQILI`, `CCQMINI`,
+         `CCQ-SFSINFIRMA2`, ...). Prefijo, no `'%CCQ%'`, para no tomar códigos como `SDCCQ20`.
+      3. `'GRUPO CONVENIOS'`: `codigo_descuento` contiene `'ALIANZA'`, `'COLEGIOABOGADO'`, `'ANAMER'` o `'FEUE'`,
          o `dim_codigos.atencion = 'CONVENIOS'` (join por `comentario_3 = codigo`).
-      3. Distribuidor con indicador de tercero en `comentario_3` (`reasignacion_distribuidores`).
-      4. `'LICENCIAS TELCONET'`: familia `'LICENCIAS'` + cliente del grupo corporativo.
-      5. `'GRUPO TERCEROS'`: `comentario_3` contiene `'TERCER'` + familia FIRMA o SF.
-      6. `'GRUPO DISTRIBUIDORES'`: `comentario_3` contiene `'DISTRIBUI'`.
-      7. `'GRUPO AGENTES'`: factura marcada como de agente o vendedor en `vendedores_agentes`.
-      8. `'GRUPO GEEKTECH'`: cliente con `codigo_cliente = '1792496136'`.
-      9. `'COMERCIAL'`: factura clasificada como comercial por la lógica de `facturas_comercial`.
-      10. `grupo_vendedor_temp` de Camunda (si existe).
-      11. `'GRUPO SECURITY DATA'`: valor por defecto.
+      4. Distribuidor con indicador de tercero en `comentario_3` (`reasignacion_distribuidores`).
+      5. `'LICENCIAS TELCONET'`: familia `'LICENCIAS'` + cliente del grupo corporativo.
+      6. `'GRUPO TERCEROS'`: `comentario_3` contiene `'TERCER'` + familia FIRMA o SF.
+      7. `'GRUPO DISTRIBUIDORES'`: `comentario_3` contiene `'DISTRIBUI'`.
+      8. `'GRUPO AGENTES'`: factura marcada como de agente o vendedor en `vendedores_agentes`.
+      9. `'GRUPO GEEKTECH'`: cliente con `codigo_cliente = '1792496136'`.
+      10. `'COMERCIAL'`: factura clasificada como comercial por la lógica de `facturas_comercial`.
+      11. `grupo_vendedor_temp` de Camunda (si existe).
+      12. `'GRUPO SECURITY DATA'`: valor por defecto.
 
-      **Herencia en notas de crédito:** las reglas 1-11 se calculan por línea usando los comentarios
+      **Herencia en notas de crédito:** las reglas 1-12 se calculan por línea usando los comentarios
       y códigos de descuento del propio documento, que no siempre se replican en la nota de crédito
       (`is_nc`) asociada. Por eso, para cada línea de una nota de crédito se busca la línea de la
       factura original con el mismo `codigo_documento` + `id_articulo` (calculada con las reglas

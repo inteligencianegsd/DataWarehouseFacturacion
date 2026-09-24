@@ -151,6 +151,8 @@ stg_fact_facturacion AS (
 
         CASE
             WHEN rgv_0.codigo_documento IS NOT NULL THEN rgv_0.grupo_asignado
+            -- Campaña CCQ (CCQILI, CCQMINI, CCQ-SFSINFIRMA2, ...): prefijo, no '%CCQ%', para no tomar SDCCQ20 (2024)
+            WHEN f_0.codigo_descuento LIKE 'CCQ%' THEN 'COMERCIAL'
             WHEN f_0.codigo_descuento LIKE '%ALIANZA%'
                 OR f_0.codigo_descuento LIKE '%COLEGIOABOGADO%'
                 OR f_0.codigo_descuento LIKE '%ANAMER%'
