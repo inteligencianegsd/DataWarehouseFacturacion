@@ -1,4 +1,3 @@
-from sqlalchemy.exc import SQLAlchemyError
 from sklearn.base import BaseEstimator, TransformerMixin
 from sqlalchemy import text, bindparam
 import pandas as pd
@@ -27,14 +26,13 @@ class DatabaseExtractor(BaseEstimator, TransformerMixin):
             with get_session(self.db_alias) as session:
                 df = pd.read_sql(stmt, session.bind, params=self.params)
             return df
-        except SQLAlchemyError as e:
-            # Handle SQLAlchemy errors
-            print(f"An error occurred while connecting to the database: {e}")
-            return pd.DataFrame()
-
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            return pd.DataFrame()
+            # Importante dejar que la excepción suba: devolver un DataFrame vacío haría
+            # que una caída de la fuente se vea como "0 filas nuevas" y la tarea de
+            # Airflow termine en éxito sin alertar.
+            self.log.error("Error extrayendo de %s: %s", self.db_alias, e.__class__.__name__)
+            self.log.error("Mensaje: %s", e)
+            raise
 
 
 class DatabaseExtractorSQLServer(BaseEstimator, TransformerMixin):
@@ -64,14 +62,13 @@ class DatabaseExtractorSQLServer(BaseEstimator, TransformerMixin):
             with get_session(self.db_alias) as session:
                 df = pd.read_sql(stmt, session.bind, params=self.params)
             return df
-        except SQLAlchemyError as e:
-            # Handle SQLAlchemy errors
-            print(f"An error occurred while connecting to the database: {e}")
-            return pd.DataFrame()
-
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            return pd.DataFrame()
+            # Importante dejar que la excepción suba: devolver un DataFrame vacío haría
+            # que una caída de la fuente se vea como "0 filas nuevas" y la tarea de
+            # Airflow termine en éxito sin alertar.
+            self.log.error("Error extrayendo de %s: %s", self.db_alias, e.__class__.__name__)
+            self.log.error("Mensaje: %s", e)
+            raise
 
 
 class CsvExtractor(BaseEstimator, TransformerMixin):
