@@ -50,9 +50,16 @@ class ReconciliationSpec:
     conflict_cols: tuple[str, ...]
     update_cols: tuple[str, ...]
     clean_special_chars_cols: tuple[str, ...] = field(default_factory=tuple)
+    # True: ademas de recuperar faltantes, borra de Bronze las claves de la ventana que
+    # ya no existen en Fenix (asientos eliminados en el origen). Solo contabilidad.
+    sync_deletes: bool = False
 
 
 class ReconciliationPipeline:
+    # Si una corrida detecta mas borrados que esto, falla sin borrar nada: es mas
+    # probable un problema de lectura en Fenix que una eliminacion masiva real.
+    MAX_DELETES = 500
+
     def __init__(self, spec: ReconciliationSpec, lookback_days: int = 30):
         self.spec = spec
         self.lookback_days = lookback_days
@@ -124,44 +131,88 @@ class ReconciliationPipeline:
         df = DropDuplicatesTransform(list(self.spec.conflict_cols)).fit_transform(df)
         return df
 
+    def _bronze_window_values(self, db_alias: str, keys: set) -> dict:
+        """clave -> valor de la columna de ventana en Bronze (para agrupar por fecha)."""
+        entity = self.spec.bronze_entity
+        key_attr = getattr(entity, self.spec.bronze_key_col)
+        window_attr = getattr(entity, self.spec.bronze_window_col)
+        out, keys = {}, list(keys)
+        with get_session(db_alias) as session:
+            for start in range(0, len(keys), self._RECOVER_BATCH_SIZE):
+                batch = keys[start:start + self._RECOVER_BATCH_SIZE]
+                out.update(session.query(key_attr, window_attr).filter(key_attr.in_(batch)).all())
+        return out
+
+    def _deleted_in_fenix(self, candidates: set) -> set:
+        """De las claves que estan en Bronze pero no en el set de la ventana de Fenix,
+        devuelve solo las que de verdad ya no existen en Fenix (se busca por clave, sin
+        ventana: si solo cambio la fecha contable, la fila sigue existiendo)."""
+        still_there = self._recover(candidates)
+        if still_there.empty:
+            return set(candidates)
+        return set(candidates) - set(still_there[self.spec.fenix_key_col].tolist())
+
+    def _delete_from_bronze(self, db_alias: str, keys: set) -> None:
+        entity = self.spec.bronze_entity
+        key_attr = getattr(entity, self.spec.bronze_key_col)
+        keys = list(keys)
+        with get_session(db_alias) as session:
+            for start in range(0, len(keys), self._RECOVER_BATCH_SIZE):
+                batch = keys[start:start + self._RECOVER_BATCH_SIZE]
+                session.query(entity).filter(key_attr.in_(batch)).delete(synchronize_session=False)
+
+    @staticmethod
+    def _count_by_date(fechas) -> dict:
+        por_fecha: dict[str, int] = {}
+        for fecha in fechas:
+            fecha = str(fecha)[:10]
+            por_fecha[fecha] = por_fecha.get(fecha, 0) + 1
+        return dict(sorted(por_fecha.items(), reverse=True))
+
     def run(self, db_alias: str = "QUANTA") -> dict:
-        """Detecta y recupera las claves faltantes. Retorna un dict serializable a
-        XCom: {"keys": [...], "por_fecha": {"YYYY-MM-DD": n}, "watermark": str};
-        "keys" vacio si no habia nada que recuperar."""
-        empty = {"keys": [], "por_fecha": {}, "watermark": None}
+        """Detecta y recupera las claves faltantes (y, si spec.sync_deletes, borra de
+        Bronze las eliminadas en Fenix). Retorna un dict serializable a XCom:
+        {"keys": [...], "por_fecha": {...}, "watermark": str,
+         "deleted": [...], "deleted_por_fecha": {...}}."""
+        result = {"keys": [], "por_fecha": {}, "watermark": None,
+                  "deleted": [], "deleted_por_fecha": {}}
         watermark = self._watermark(db_alias)
         if watermark is None:
-            return empty
-        empty["watermark"] = str(watermark)
+            return result
+        result["watermark"] = str(watermark)
 
         cutoff = self._cutoff()
         fenix_keys = self._fenix_keys(cutoff, watermark)
         bronze_keys = self._bronze_keys(db_alias, cutoff)
+
         missing = set(fenix_keys) - bronze_keys
-        if not missing:
-            return empty
+        if missing:
+            df = self._recover({fenix_keys[key][0] for key in missing})
+            if not df.empty:
+                DWBatchedLoader(
+                    db_alias=db_alias,
+                    model_class=self.spec.bronze_entity,
+                    mode=ModePersistence.UPDATE,
+                    conflict_cols=self.spec.conflict_cols,
+                    update_cols=self.spec.update_cols,
+                    batch_size=2000,
+                    commit_per_batch=True,
+                ).fit_transform(df)
+                result["keys"] = sorted(str(key) for key in missing)
+                result["por_fecha"] = self._count_by_date(fenix_keys[key][1] for key in missing)
 
-        df = self._recover({fenix_keys[key][0] for key in missing})
-        if df.empty:
-            return empty
+        if self.spec.sync_deletes:
+            candidates = bronze_keys - set(fenix_keys)
+            deleted = self._deleted_in_fenix(candidates) if candidates else set()
+            if len(deleted) > self.MAX_DELETES:
+                raise RuntimeError(
+                    f"Backfill {self.spec.name}: {len(deleted)} claves de Bronze no existen en "
+                    f"Fenix (tope {self.MAX_DELETES}). No se borro nada; revisar antes."
+                )
+            if deleted:
+                fechas = self._bronze_window_values(db_alias, deleted)
+                self._delete_from_bronze(db_alias, deleted)
+                result["deleted"] = sorted(str(key) for key in deleted)
+                result["deleted_por_fecha"] = self._count_by_date(fechas.values())
 
-        DWBatchedLoader(
-            db_alias=db_alias,
-            model_class=self.spec.bronze_entity,
-            mode=ModePersistence.UPDATE,
-            conflict_cols=self.spec.conflict_cols,
-            update_cols=self.spec.update_cols,
-            batch_size=2000,
-            commit_per_batch=True,
-        ).fit_transform(df)
-
-        por_fecha: dict[str, int] = {}
-        for key in missing:
-            fecha = str(fenix_keys[key][1])[:10]
-            por_fecha[fecha] = por_fecha.get(fecha, 0) + 1
-
-        return {
-            "keys": sorted(str(key) for key in missing),
-            "por_fecha": dict(sorted(por_fecha.items(), reverse=True)),
-            "watermark": str(watermark),
-        }
+        return result

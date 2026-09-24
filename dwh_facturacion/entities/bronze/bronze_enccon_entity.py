@@ -24,10 +24,16 @@ class BronzeEnconEntity(Base, BaseModel):
 
     @classmethod
     def get_last_transaction_date(cls, session: Session, where_func=None):
+        """
+        Igual que rencon, el cursor incremental es el id autoincremental del origen y no
+        `fecha`: Fenix graba asientos por lotes con una `fecha` anterior al momento en que
+        se confirman, asi que un MAX(fecha) ya cargado deja fuera filas que llegan despues
+        con fecha menor (visto el 2026-09-24: ids > MAX(id_codasi) con fecha < MAX(fecha)).
+        """
         query = session.query(
-            func.max(cls.fecha)
+            func.max(cls.id_codasi)
         )
         if where_func:
             query = where_func(query)
         result = query.scalar()
-        return str(result) if result else None
+        return result

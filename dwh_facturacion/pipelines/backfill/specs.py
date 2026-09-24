@@ -5,8 +5,8 @@ reconciliation_pipeline.py para el porque de este mecanismo.
 Cada fenix_key_set_query devuelve la clave + `fecha_ref` (fecha para agrupar en la
 notificacion) y se limita con `:watermark` sobre la MISMA columna que usa el
 incremental de esa tabla (ver get_last_transaction_date de cada entidad bronze):
-fecha_hora en facturas, fecha_act en clientes/vendedores, id_sec en rencon, fecha en
-enccon.
+fecha_hora en facturas, fecha_act en clientes/vendedores, id_sec en rencon, id_codasi
+en enccon.
 
 Las claves se normalizan igual que en el incremental de cada tabla (TRIM solo donde el
 SQL incremental lo hace, p.ej. clientes; CleanSpecialCharacters donde el pipeline
@@ -15,6 +15,10 @@ como faltantes filas que ya existen.
 
 Las filas con la columna del watermark en NULL tambien se revisan: el incremental
 (`<col> > :max`) nunca las carga, asi que el backfill es el unico que puede traerlas.
+
+Solo contabilidad (rencon, enccon) usa sync_deletes: los asientos eliminados en Fenix
+tambien se quitan de Bronze, para que fact_cuentas quede igual al origen. Facturacion no
+borra nada (sus exclusiones se manejan con features.facturas_excluidas).
 """
 from dwh_facturacion.entities.bronze.broze_facturas_entity import BronzeFacturaEntity
 from dwh_facturacion.entities.bronze.bronze_clientes_entity import BronzeClienteEntity
@@ -130,6 +134,7 @@ RENCON_SPEC = ReconciliationSpec(
     bronze_window_col="fecasi",
     conflict_cols=("id_sec",),
     update_cols=("codcomp", "codcta", "importe", "codasi", "fecasi", "origen"),
+    sync_deletes=True,
 )
 
 ENCCON_SPEC = ReconciliationSpec(
@@ -138,7 +143,7 @@ ENCCON_SPEC = ReconciliationSpec(
         SELECT id_codasi, fecasi AS fecha_ref
         FROM security_data.enccon
         WHERE fecasi >= :cutoff
-          AND (fecha <= :watermark OR fecha IS NULL)
+          AND id_codasi <= :watermark
     """,
     fenix_key_col="id_codasi",
     fenix_recover_query="""
@@ -152,6 +157,7 @@ ENCCON_SPEC = ReconciliationSpec(
     bronze_window_col="fecasi",
     conflict_cols=("id_codasi",),
     update_cols=("codcomp", "codasi", "fecasi", "fecha"),
+    sync_deletes=True,
 )
 
 ALL_SPECS = (FACTURAS_SPEC, CLIENTES_SPEC, VENDEDORES_SPEC, RENCON_SPEC, ENCCON_SPEC)
