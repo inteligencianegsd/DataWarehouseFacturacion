@@ -514,5 +514,9 @@ models:
           - not_null
       - name: codigo_asiento
         description: "Código único del asiento contable (TRIM de codasi), cruza con dbt_fenix_rencon.codigo_asiento."
+        tests:
+          # fact_cuentas une rencon con enccon solo por codigo_asiento: si se repitiera,
+          # los importes de ese asiento se duplicarian.
+          - unique
       - name: fecha_asiento
         description: "Fecha contable del asiento (fecasi)."
