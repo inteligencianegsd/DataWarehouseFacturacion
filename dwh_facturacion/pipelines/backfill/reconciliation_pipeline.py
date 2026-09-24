@@ -11,6 +11,12 @@ Este pipeline compara, dentro de una ventana reciente (lookback_days), el conjun
 claves que existen en Fenix contra el conjunto que ya esta en Bronze, y hace upsert de
 lo que falte. No reemplaza el incremental regular: es una red de seguridad que corre
 por separado (ver dwh_facturacion.tasks.run_backfill_*).
+
+Del lado Fenix solo se miran claves hasta el watermark actual de Bronze (el mismo
+MAX() que usa el incremental, via get_last_transaction_date). Lo que esta por encima
+del watermark todavia le toca al incremental: si el backfill lo trajera, (1) lo
+reportaria como "faltante" sin serlo y (2) adelantaria el watermark, haciendo que el
+incremental salte filas que lleguen tarde con fecha anterior.
 """
 from __future__ import annotations
 
@@ -19,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import Type
 
 import pandas as pd
-from sqlalchemy import text, bindparam
+from sqlalchemy import text, bindparam, or_
 
 from dwh_facturacion.common.session_manager import get_session
 from dwh_facturacion.etl.extract.db_extractor import DatabaseExtractor
@@ -31,7 +37,8 @@ from dwh_facturacion.utils.mode_persistence import ModePersistence
 @dataclass(frozen=True)
 class ReconciliationSpec:
     name: str
-    # SELECT <fenix_key_col> ... FROM ... WHERE <ventana> >= :cutoff
+    # SELECT <fenix_key_col>, <fecha> AS fecha_ref ... FROM ...
+    # WHERE <ventana> >= :cutoff AND <columna del incremental> <= :watermark
     fenix_key_set_query: str
     fenix_key_col: str
     # SELECT completo de una fila ... WHERE <key> = :<fenix_key_param>
@@ -53,22 +60,40 @@ class ReconciliationPipeline:
     def _cutoff(self) -> dt.date:
         return dt.date.today() - dt.timedelta(days=self.lookback_days)
 
-    def _fenix_keys(self, cutoff: dt.date) -> set:
+    def _watermark(self, db_alias: str):
+        """Watermark actual del incremental de esta tabla en Bronze (None si vacia)."""
+        with get_session(db_alias) as session:
+            return self.spec.bronze_entity.get_last_transaction_date(session)
+
+    def _fenix_keys(self, cutoff: dt.date, watermark) -> dict:
+        """Claves de Fenix en la ventana, hasta el watermark:
+        clave normalizada (como queda en Bronze) -> (clave cruda en Fenix, fecha_ref)."""
         df = DatabaseExtractor(
             db_alias="FENIX",
             query=self.spec.fenix_key_set_query,
-            params={"cutoff": cutoff},
+            params={"cutoff": cutoff, "watermark": watermark},
         ).fit_transform(None)
         if df.empty:
-            return set()
-        return set(df[self.spec.fenix_key_col].tolist())
+            return {}
+        key_col = self.spec.fenix_key_col
+        raw = df[key_col].tolist()
+        if key_col in self.spec.clean_special_chars_cols:
+            df = CleanSpecialCharacters([key_col]).fit_transform(df)
+        return {
+            norm: (orig, fecha)
+            for norm, orig, fecha in zip(df[key_col], raw, df["fecha_ref"])
+        }
 
     def _bronze_keys(self, db_alias: str, cutoff: dt.date) -> set:
         entity = self.spec.bronze_entity
         key_attr = getattr(entity, self.spec.bronze_key_col)
         window_attr = getattr(entity, self.spec.bronze_window_col)
         with get_session(db_alias) as session:
-            rows = session.query(key_attr).filter(window_attr >= cutoff).all()
+            # Incluye las filas con la columna de ventana en NULL, igual que el lado Fenix
+            # (clientes/vendedores con fecha_act NULL), para no reportarlas cada noche.
+            rows = session.query(key_attr).filter(
+                or_(window_attr >= cutoff, window_attr.is_(None))
+            ).all()
         return {row[0] for row in rows}
 
     _RECOVER_BATCH_SIZE = 500
@@ -99,19 +124,26 @@ class ReconciliationPipeline:
         df = DropDuplicatesTransform(list(self.spec.conflict_cols)).fit_transform(df)
         return df
 
-    def run(self, db_alias: str = "QUANTA") -> list[str]:
-        """Detecta y recupera las claves faltantes. Retorna la lista de claves
-        recuperadas (vacia si no habia nada que recuperar)."""
-        cutoff = self._cutoff()
-        fenix_keys = self._fenix_keys(cutoff)
-        bronze_keys = self._bronze_keys(db_alias, cutoff)
-        missing = fenix_keys - bronze_keys
-        if not missing:
-            return []
+    def run(self, db_alias: str = "QUANTA") -> dict:
+        """Detecta y recupera las claves faltantes. Retorna un dict serializable a
+        XCom: {"keys": [...], "por_fecha": {"YYYY-MM-DD": n}, "watermark": str};
+        "keys" vacio si no habia nada que recuperar."""
+        empty = {"keys": [], "por_fecha": {}, "watermark": None}
+        watermark = self._watermark(db_alias)
+        if watermark is None:
+            return empty
+        empty["watermark"] = str(watermark)
 
-        df = self._recover(missing)
+        cutoff = self._cutoff()
+        fenix_keys = self._fenix_keys(cutoff, watermark)
+        bronze_keys = self._bronze_keys(db_alias, cutoff)
+        missing = set(fenix_keys) - bronze_keys
+        if not missing:
+            return empty
+
+        df = self._recover({fenix_keys[key][0] for key in missing})
         if df.empty:
-            return []
+            return empty
 
         DWBatchedLoader(
             db_alias=db_alias,
@@ -123,4 +155,13 @@ class ReconciliationPipeline:
             commit_per_batch=True,
         ).fit_transform(df)
 
-        return sorted(str(key) for key in missing)
+        por_fecha: dict[str, int] = {}
+        for key in missing:
+            fecha = str(fenix_keys[key][1])[:10]
+            por_fecha[fecha] = por_fecha.get(fecha, 0) + 1
+
+        return {
+            "keys": sorted(str(key) for key in missing),
+            "por_fecha": dict(sorted(por_fecha.items(), reverse=True)),
+            "watermark": str(watermark),
+        }

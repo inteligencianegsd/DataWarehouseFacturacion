@@ -305,10 +305,11 @@ def run_bronze_operatividad(
 def run_backfill_facturas(
     db_alias: DBAliasType = "QUANTA",
     lookback_days: int = 30,
-) -> list[str]:
+) -> dict:
     """Reconcilia facturas de los últimos `lookback_days` días entre Fenix y bronze.
 
-    Retorna la lista de numfac recuperados (vacía si no había nada que recuperar).
+    Retorna {"keys": [numfac recuperados], "por_fecha": {fecha: n}, "watermark": str}
+    (keys vacía si no había nada que recuperar).
     """
     _ensure_runtime_configured()
     return ReconciliationPipeline(FACTURAS_SPEC, lookback_days).run(db_alias)
@@ -317,10 +318,11 @@ def run_backfill_facturas(
 def run_backfill_clientes(
     db_alias: DBAliasType = "QUANTA",
     lookback_days: int = 30,
-) -> list[str]:
+) -> dict:
     """Reconcilia clientes de los últimos `lookback_days` días entre Fenix y bronze.
 
-    Retorna la lista de codcli recuperados (vacía si no había nada que recuperar).
+    Retorna {"keys": [codcli recuperados], "por_fecha": {fecha: n}, "watermark": str}
+    (keys vacía si no había nada que recuperar).
     """
     _ensure_runtime_configured()
     return ReconciliationPipeline(CLIENTES_SPEC, lookback_days).run(db_alias)
@@ -329,10 +331,11 @@ def run_backfill_clientes(
 def run_backfill_vendedores(
     db_alias: DBAliasType = "QUANTA",
     lookback_days: int = 30,
-) -> list[str]:
+) -> dict:
     """Reconcilia vendedores de los últimos `lookback_days` días entre Fenix y bronze.
 
-    Retorna la lista de codven recuperados (vacía si no había nada que recuperar).
+    Retorna {"keys": [codven recuperados], "por_fecha": {fecha: n}, "watermark": str}
+    (keys vacía si no había nada que recuperar).
     """
     _ensure_runtime_configured()
     return ReconciliationPipeline(VENDEDORES_SPEC, lookback_days).run(db_alias)
@@ -341,10 +344,11 @@ def run_backfill_vendedores(
 def run_backfill_rencon(
     db_alias: DBAliasType = "QUANTA",
     lookback_days: int = 30,
-) -> list[str]:
+) -> dict:
     """Reconcilia rencon de los últimos `lookback_days` días entre Fenix y bronze.
 
-    Retorna la lista de id_sec recuperados (vacía si no había nada que recuperar).
+    Retorna {"keys": [id_sec recuperados], "por_fecha": {fecha: n}, "watermark": str}
+    (keys vacía si no había nada que recuperar).
     """
     _ensure_runtime_configured()
     return ReconciliationPipeline(RENCON_SPEC, lookback_days).run(db_alias)
@@ -353,10 +357,11 @@ def run_backfill_rencon(
 def run_backfill_enccon(
     db_alias: DBAliasType = "QUANTA",
     lookback_days: int = 30,
-) -> list[str]:
+) -> dict:
     """Reconcilia enccon de los últimos `lookback_days` días entre Fenix y bronze.
 
-    Retorna la lista de id_codasi recuperados (vacía si no había nada que recuperar).
+    Retorna {"keys": [id_codasi recuperados], "por_fecha": {fecha: n}, "watermark": str}
+    (keys vacía si no había nada que recuperar).
     """
     _ensure_runtime_configured()
     return ReconciliationPipeline(ENCCON_SPEC, lookback_days).run(db_alias)

@@ -1,6 +1,20 @@
 """
 Specs de reconciliacion por tabla, usadas por ReconciliationPipeline. Ver
 reconciliation_pipeline.py para el porque de este mecanismo.
+
+Cada fenix_key_set_query devuelve la clave + `fecha_ref` (fecha para agrupar en la
+notificacion) y se limita con `:watermark` sobre la MISMA columna que usa el
+incremental de esa tabla (ver get_last_transaction_date de cada entidad bronze):
+fecha_hora en facturas, fecha_act en clientes/vendedores, id_sec en rencon, fecha en
+enccon.
+
+Las claves se normalizan igual que en el incremental de cada tabla (TRIM solo donde el
+SQL incremental lo hace, p.ej. clientes; CleanSpecialCharacters donde el pipeline
+incremental lo aplica, p.ej. codven), para que la diferencia contra Bronze no marque
+como faltantes filas que ya existen.
+
+Las filas con la columna del watermark en NULL tambien se revisan: el incremental
+(`<col> > :max`) nunca las carga, asi que el backfill es el unico que puede traerlas.
 """
 from dwh_facturacion.entities.bronze.broze_facturas_entity import BronzeFacturaEntity
 from dwh_facturacion.entities.bronze.bronze_clientes_entity import BronzeClienteEntity
@@ -12,9 +26,10 @@ from dwh_facturacion.pipelines.backfill.reconciliation_pipeline import Reconcili
 FACTURAS_SPEC = ReconciliationSpec(
     name="facturas",
     fenix_key_set_query="""
-        SELECT TRIM(f.numfac) AS numfac
+        SELECT f.numfac, DATE(f.emision) AS fecha_ref
         FROM security_data.facturas f
         WHERE f.emision >= :cutoff
+          AND (f.fecha_hora <= :watermark OR f.fecha_hora IS NULL)
     """,
     fenix_key_col="numfac",
     fenix_recover_query="""
@@ -36,7 +51,7 @@ FACTURAS_SPEC = ReconciliationSpec(
             f.emision,
             f.fecha_hora
         FROM security_data.facturas f
-        WHERE TRIM(f.numfac) IN :numfac
+        WHERE f.numfac IN :numfac
     """,
     fenix_key_param="numfac",
     bronze_entity=BronzeFacturaEntity,
@@ -53,9 +68,10 @@ FACTURAS_SPEC = ReconciliationSpec(
 CLIENTES_SPEC = ReconciliationSpec(
     name="clientes",
     fenix_key_set_query="""
-        SELECT TRIM(codcli) AS codcli
+        SELECT TRIM(codcli) AS codcli, DATE(fecha_act) AS fecha_ref
         FROM security_data.clientes
-        WHERE fecha_act >= :cutoff
+        WHERE (fecha_act >= :cutoff AND fecha_act <= :watermark)
+           OR fecha_act IS NULL
     """,
     fenix_key_col="codcli",
     fenix_recover_query="""
@@ -68,36 +84,39 @@ CLIENTES_SPEC = ReconciliationSpec(
     bronze_key_col="codcli",
     bronze_window_col="fecha_act",
     conflict_cols=("codcli",),
-    update_cols=("nomcli", "cif", "fecha_act"),
+    update_cols=("update_date", "nomcli", "cif", "fecha_act"),
 )
 
 VENDEDORES_SPEC = ReconciliationSpec(
     name="vendedores",
     fenix_key_set_query="""
-        SELECT TRIM(codven) AS codven
+        SELECT codven, DATE(fecha_act) AS fecha_ref
         FROM security_data.vendedores
-        WHERE fecha_act >= :cutoff
+        WHERE (fecha_act >= :cutoff AND fecha_act <= :watermark)
+           OR fecha_act IS NULL
     """,
     fenix_key_col="codven",
     fenix_recover_query="""
-        SELECT id_codven, TRIM(codven) AS codven, nomven, fecha_act
+        SELECT id_codven, codven, nomven, fecha_act
         FROM security_data.vendedores
-        WHERE TRIM(codven) IN :codven
+        WHERE codven IN :codven
     """,
     fenix_key_param="codven",
     bronze_entity=BronzeVendedoresEntity,
     bronze_key_col="codven",
     bronze_window_col="fecha_act",
     conflict_cols=("codven",),
-    update_cols=("nomven", "fecha_act"),
+    update_cols=("update_date", "nomven", "fecha_act"),
+    clean_special_chars_cols=("codven",),
 )
 
 RENCON_SPEC = ReconciliationSpec(
     name="rencon",
     fenix_key_set_query="""
-        SELECT id_sec
+        SELECT id_sec, fecasi AS fecha_ref
         FROM security_data.rencon
         WHERE fecasi >= :cutoff
+          AND id_sec <= :watermark
     """,
     fenix_key_col="id_sec",
     fenix_recover_query="""
@@ -116,9 +135,10 @@ RENCON_SPEC = ReconciliationSpec(
 ENCCON_SPEC = ReconciliationSpec(
     name="enccon",
     fenix_key_set_query="""
-        SELECT id_codasi
+        SELECT id_codasi, fecasi AS fecha_ref
         FROM security_data.enccon
         WHERE fecasi >= :cutoff
+          AND (fecha <= :watermark OR fecha IS NULL)
     """,
     fenix_key_col="id_codasi",
     fenix_recover_query="""
