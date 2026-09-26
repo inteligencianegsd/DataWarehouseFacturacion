@@ -47,9 +47,9 @@ facturas_agentes AS (
     OR va_0.codigo_vendedor IS NOT NULL
 ),
 
--- EXPERIMENTAL (2026-09-04): validación cruzada de grupo_vendedor contra el esquema
--- canal_indirecto (usuarios/historial_grupo). No reemplaza grupo_vendedor, solo alimenta
--- la columna grupo_vendedor_test para comparar cuánto cambiaría la clasificación.
+-- Grupo de canal_indirecto (usuarios/historial_grupo) por RUC y fecha de la factura.
+-- Desde 2026-09-25 reasigna grupo_vendedor SOLO de las líneas del token EPASS 3003
+-- (120101001); ver stg_fact_facturacion_canal.
 canal_indirecto_historial AS (
     SELECT DISTINCT
         u."RUC" AS ruc,
@@ -131,6 +131,7 @@ stg_fact_facturacion AS (
         dc_0.id_cliente,
         dv_0.id_vendedor,
         da_0.id_articulo,
+        da_0.codigo_articulo,
         f_0.id_sucursal,
         CASE
             WHEN dco_0.id_codigo IS NOT NULL THEN dco_0.id_codigo
@@ -201,19 +202,17 @@ stg_fact_facturacion AS (
 
 ),
 
--- EXPERIMENTAL (2026-09-04): grupo_vendedor_test = grupo_vendedor, pero como paso final se
--- reasigna usando canal_indirecto (usuarios/historial_grupo) SOLO cuando el grupo calculado es
--- uno de los 4 grupos "de canal" (TERCEROS/AGENTES/DISTRIBUIDORES/SECURITY DATA). No toca
--- COMERCIAL, GRUPO CONVENIOS, LICENCIAS TELCONET ni GRUPO GEEKTECH, que tienen sus propias reglas.
-stg_fact_facturacion_test AS (
+-- Token EPASS 3003 (120101001, desde 2026-09-25): si el RUC del cliente tiene grupo en
+-- canal_indirecto para la fecha de la factura, ese grupo manda sobre CUALQUIER regla de
+-- grupo_vendedor (incluidas COMERCIAL/CONVENIOS). Sin coincidencia, queda el grupo calculado.
+stg_fact_facturacion_canal AS (
     SELECT
         sff.*,
         CASE
-            WHEN sff.grupo_vendedor IN ('GRUPO SECURITY DATA', 'GRUPO TERCEROS', 'GRUPO DISTRIBUIDORES', 'GRUPO AGENTES')
-                 AND cig_0.grupo_canal_indirecto IS NOT NULL
+            WHEN sff.codigo_articulo = '120101001' AND cig_0.grupo_canal_indirecto IS NOT NULL
             THEN cig_0.grupo_canal_indirecto
             ELSE sff.grupo_vendedor
-        END AS grupo_vendedor_test
+        END AS grupo_vendedor_final
     FROM stg_fact_facturacion sff
     LEFT JOIN canal_indirecto_por_documento cig_0 ON sff.codigo_documento = cig_0.codigo_documento
 ),
@@ -225,10 +224,9 @@ grupo_vendedor_original AS (
     SELECT
         codigo_documento,
         id_articulo,
-        MAX(grupo_vendedor) AS grupo_vendedor_original,
-        MAX(grupo_vendedor_test) AS grupo_vendedor_test_original,
+        MAX(grupo_vendedor_final) AS grupo_vendedor_original,
         MAX(id_codigo) AS id_codigo_original
-    FROM stg_fact_facturacion_test
+    FROM stg_fact_facturacion_canal
     WHERE NOT is_nc
     GROUP BY codigo_documento, id_articulo
 ),
@@ -257,13 +255,9 @@ stg_fact_facturacion_nc AS (
         sff.excluir_ajuste_centavos,
         CASE
             WHEN sff.is_nc AND gvo.grupo_vendedor_original IS NOT NULL THEN gvo.grupo_vendedor_original
-            ELSE sff.grupo_vendedor
-        END AS grupo_vendedor,
-        CASE
-            WHEN sff.is_nc AND gvo.grupo_vendedor_test_original IS NOT NULL THEN gvo.grupo_vendedor_test_original
-            ELSE sff.grupo_vendedor_test
-        END AS grupo_vendedor_test
-    FROM stg_fact_facturacion_test sff
+            ELSE sff.grupo_vendedor_final
+        END AS grupo_vendedor
+    FROM stg_fact_facturacion_canal sff
     LEFT JOIN grupo_vendedor_original gvo
         ON sff.codigo_documento = gvo.codigo_documento
         AND sff.id_articulo = gvo.id_articulo
@@ -317,7 +311,6 @@ stg_fact_subtotal AS (
     --  Validación (debería dar 0 o muy cercano)
     --  SUM(subtotal_articulo + ajuste_centavos) OVER (PARTITION BY id_factura) - total_sin_iva AS residuo_control,
         grupo_vendedor,
-        grupo_vendedor_test,
         descuento_articulo
     FROM stg_fact_facturacion_correccion
 ),
@@ -342,7 +335,6 @@ SELECT
     porcentaje_descuento,
     porcentaje_iva,
     grupo_vendedor,
-    grupo_vendedor_test,
     descuento_articulo,
     subtotal_articulo,
     total_iva,

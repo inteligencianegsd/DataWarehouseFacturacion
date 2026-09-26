@@ -454,9 +454,9 @@ sources:
     schema: canal_indirecto
     description: >
       Esquema del portal/app de canal indirecto (terceros, distribuidores) donde se registran
-      solicitudes de usuarios y su historial de cambio de grupo comercial. Se usa (2026-09) de
-      forma experimental como validación cruzada de `grupo_vendedor` en `dbt_fact_facturacion`
-      (columna `grupo_vendedor_test`), sin reemplazar aún la lógica productiva.
+      solicitudes de usuarios y su historial de cambio de grupo comercial. Desde 2026-09-25 se usa
+      en `dbt_fact_facturacion` para reasignar `grupo_vendedor` de las líneas del token EPASS 3003
+      (120101001) al grupo de canal_indirecto vigente en la fecha de la factura.
     tables:
       - name: usuarios
         description: >
