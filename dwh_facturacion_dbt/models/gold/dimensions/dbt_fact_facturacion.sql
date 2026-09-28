@@ -288,6 +288,23 @@ stg_fact_facturacion_correccion AS (
     FROM stg_fact_facturacion_diferencia
 ),
 
+-- Redondeo a 2 decimales que cuadra cada factura al centavo con su cabecera
+-- (total - total_iva): se redondea cada línea con su ajuste y el sobrante que deja el
+-- redondeo se suma a la línea de mayor monto. Las facturas del seed reasignacion_subtotal
+-- no se tocan (su cabecera quedó mal en Fenix y se conserva el valor por línea).
+stg_fact_facturacion_redondeo AS (
+    SELECT
+        *,
+        ROUND(total_sin_iva, 2)
+            - SUM(ROUND(subtotal_articulo + COALESCE(ajuste_centavos, 0), 2)) OVER (PARTITION BY id_factura)
+            AS residuo_redondeo,
+        ROW_NUMBER() OVER (
+            PARTITION BY id_factura
+            ORDER BY ABS(subtotal_articulo) DESC, id_articulo, cantidad_articulos, valor_unitario
+        ) AS rn_linea
+    FROM stg_fact_facturacion_correccion
+),
+
 stg_fact_subtotal AS (
     SELECT
         id_factura,
@@ -302,9 +319,10 @@ stg_fact_subtotal AS (
         porcentaje_descuento,
         fecha_emision_fenix,
         hora_emision_fenix,
-        case
-            when diferencia <> 0 and not excluir_ajuste_centavos then ROUND(subtotal_articulo + ajuste_centavos, 2)
-            else subtotal_articulo
+        CASE
+            WHEN excluir_ajuste_centavos THEN subtotal_articulo
+            WHEN rn_linea = 1 THEN ROUND(subtotal_articulo + COALESCE(ajuste_centavos, 0), 2) + residuo_redondeo
+            ELSE ROUND(subtotal_articulo + COALESCE(ajuste_centavos, 0), 2)
         END AS subtotal_articulo,
         porcentaje_iva,
 
@@ -312,7 +330,7 @@ stg_fact_subtotal AS (
     --  SUM(subtotal_articulo + ajuste_centavos) OVER (PARTITION BY id_factura) - total_sin_iva AS residuo_control,
         grupo_vendedor,
         descuento_articulo
-    FROM stg_fact_facturacion_correccion
+    FROM stg_fact_facturacion_redondeo
 ),
 stg_fact_iva_articulo AS (
     SELECT
