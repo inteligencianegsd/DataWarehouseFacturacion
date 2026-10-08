@@ -52,7 +52,9 @@
         AND t.id_tarea IN (620, 621)
         AND (fs.estado_registro = TRUE OR fs.estado_registro IS NULL)
         AND f.estado_registro = TRUE
-        AND fecha_factura > :max_incremental_date
+        -- Además de lo nuevo, se releen los trámites que en Bronze siguen con factura
+        -- genérica (888888888888888) para traer el número real cuando Camunda lo asigne.
+        AND (fecha_factura > :max_incremental_date OR t.id_tramite = ANY(:tramites_genericos))
    ORDER BY fecha_factura ASC
         
         

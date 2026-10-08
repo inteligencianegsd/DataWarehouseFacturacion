@@ -1,6 +1,8 @@
 from typing import Optional, Type, List, Dict
 
 import pandas as pd
+from sqlalchemy import exists
+from sqlalchemy.orm import aliased
 
 from dwh_facturacion.common.session_manager import get_session
 from dwh_facturacion.config.app_config import AppConfig
@@ -14,6 +16,11 @@ from dwh_facturacion.utils.RunMode import RunMode
 from dwh_facturacion.utils.general_functions import load_sql_statement
 from dwh_facturacion.utils.mode_persistence import ModePersistence
 from dwh_facturacion.utils.source_spec import SourceSpec
+
+
+# Número que Camunda pone en factura_externa mientras la factura es genérica
+# (factura.fact_generica = TRUE). Cuando se asigna la factura real cambia el número.
+FACTURA_GENERICA = "888888888888888"
 
 
 class DatabaseConfig:
@@ -79,7 +86,36 @@ class BronzeOperatividadPipeline:
                 )
                 max_incremental_date = self.database_config.model_class.get_last_billing_date(session, where_func)
         print(max_incremental_date)
-        return {"max_incremental_date": max_incremental_date}
+        return {"max_incremental_date": max_incremental_date,
+                "tramites_genericos": self._tramites_genericos()}
+
+    def _tramites_genericos(self) -> List[int]:
+        """Trámites de Camunda que en Bronze siguen con la factura genérica. Se releen en
+        cada ejecución aunque su fecha_factura no sea nueva, para traer el número real."""
+        entity = self.database_config.model_class
+        with get_session(self.database_config.db_alias_load) as session:
+            rows = (session.query(entity.id_tramite)
+                    .filter(entity.origen == "CAMUNDA", entity.factura == FACTURA_GENERICA)
+                    .distinct().all())
+        return [row[0] for row in rows]
+
+    def _delete_facturas_genericas_reemplazadas(self) -> int:
+        """Borra la fila con factura genérica de los trámites que ya tienen en Bronze su
+        factura real (igual o más reciente). El upsert no la puede reemplazar porque la
+        factura es parte de la llave (id_tramite, origen, factura)."""
+        entity = self.database_config.model_class
+        real = aliased(entity)
+        with get_session(self.database_config.db_alias_load) as session:
+            deleted = (session.query(entity)
+                       .filter(entity.origen == "CAMUNDA",
+                               entity.factura == FACTURA_GENERICA,
+                               exists().where(real.id_tramite == entity.id_tramite,
+                                              real.origen == entity.origen,
+                                              real.factura != FACTURA_GENERICA,
+                                              real.fecha_factura >= entity.fecha_factura))
+                       .delete(synchronize_session=False))
+        print(f"Facturas genéricas reemplazadas por su factura real: {deleted}")
+        return deleted
 
     def _build_pipeline(self, spec: SourceSpec, sql_text: str, params: Optional[Dict[str, object]]) -> LoggingPipeline:
         steps = [
@@ -130,3 +166,4 @@ class BronzeOperatividadPipeline:
             df = pipe.fit_transform(None)
             frames.append(df)
         self._integration_pipeline().fit_transform(frames)
+        self._delete_facturas_genericas_reemplazadas()
