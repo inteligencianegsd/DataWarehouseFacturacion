@@ -345,10 +345,12 @@ def run_backfill_rencon(
     db_alias: DBAliasType = "QUANTA",
     lookback_days: int = 30,
 ) -> dict:
-    """Reconcilia rencon de los últimos `lookback_days` días entre Fenix y bronze.
+    """Reconcilia rencon entre Fenix y bronze en todo el año fiscal abierto (o los últimos
+    `lookback_days` días si es más largo): recupera faltantes, actualiza los que
+    cambiaron de valor en Fenix y borra los eliminados.
 
-    Retorna {"keys": [id_sec recuperados], "por_fecha": {fecha: n}, "watermark": str}
-    (keys vacía si no había nada que recuperar).
+    Retorna {"keys": [id_sec recuperados], "por_fecha": {fecha: n}, "watermark": str,
+    "updated": [...], "updated_por_fecha": {...}, "deleted": [...], "deleted_por_fecha": {...}}.
     """
     _ensure_runtime_configured()
     return ReconciliationPipeline(RENCON_SPEC, lookback_days).run(db_alias)
@@ -358,10 +360,12 @@ def run_backfill_enccon(
     db_alias: DBAliasType = "QUANTA",
     lookback_days: int = 30,
 ) -> dict:
-    """Reconcilia enccon de los últimos `lookback_days` días entre Fenix y bronze.
+    """Reconcilia enccon entre Fenix y bronze en todo el año fiscal abierto (o los últimos
+    `lookback_days` días si es más largo): recupera faltantes, actualiza los que
+    cambiaron de valor en Fenix y borra los eliminados.
 
-    Retorna {"keys": [id_codasi recuperados], "por_fecha": {fecha: n}, "watermark": str}
-    (keys vacía si no había nada que recuperar).
+    Retorna {"keys": [id_codasi recuperados], "por_fecha": {fecha: n}, "watermark": str,
+    "updated": [...], "updated_por_fecha": {...}, "deleted": [...], "deleted_por_fecha": {...}}.
     """
     _ensure_runtime_configured()
     return ReconciliationPipeline(ENCCON_SPEC, lookback_days).run(db_alias)

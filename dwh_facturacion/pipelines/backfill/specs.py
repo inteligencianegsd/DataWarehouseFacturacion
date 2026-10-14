@@ -19,6 +19,14 @@ Las filas con la columna del watermark en NULL tambien se revisan: el incrementa
 Solo contabilidad (rencon, enccon) usa sync_deletes: los asientos eliminados en Fenix
 tambien se quitan de Bronze, para que fact_cuentas quede igual al origen. Facturacion no
 borra nada (sus exclusiones se manejan con features.facturas_excluidas).
+
+Contabilidad tambien compara VALORES (row_hash), no solo claves, y revisa todo el ano
+fiscal abierto (fiscal_year_window), no solo lookback_days: contabilidad edita y rehace
+asientos de meses anteriores conservando id_sec/id_codasi (visto el 2026-10-07: asientos
+de vacaciones de feb-ago reeditados), y ni el incremental (`id > max`) ni la comparacion
+de claves detectaban esos cambios -- la utilidad de fact_cuentas quedaba desfasada de
+Fenix. Las dos expresiones de hash (MySQL / Postgres) deben normalizar igual: importe en
+centavos enteros (decimal(18,2) en Fenix), fechas con formato explicito, TRIM y NULL -> ''.
 """
 from dwh_facturacion.entities.bronze.broze_facturas_entity import BronzeFacturaEntity
 from dwh_facturacion.entities.bronze.bronze_clientes_entity import BronzeClienteEntity
@@ -117,7 +125,17 @@ VENDEDORES_SPEC = ReconciliationSpec(
 RENCON_SPEC = ReconciliationSpec(
     name="rencon",
     fenix_key_set_query="""
-        SELECT id_sec, fecasi AS fecha_ref
+        SELECT
+            id_sec,
+            fecasi AS fecha_ref,
+            CAST(CONV(LEFT(MD5(CONCAT_WS('|',
+                COALESCE(TRIM(codcomp), ''),
+                COALESCE(TRIM(codcta), ''),
+                COALESCE(CAST(importe * 100 AS SIGNED), ''),
+                COALESCE(TRIM(codasi), ''),
+                COALESCE(DATE_FORMAT(fecasi, '%Y-%m-%d'), ''),
+                COALESCE(TRIM(origen), '')
+            )), 15), 16, 10) AS UNSIGNED) AS row_hash
         FROM security_data.rencon
         WHERE fecasi >= :cutoff
           AND id_sec <= :watermark
@@ -135,12 +153,31 @@ RENCON_SPEC = ReconciliationSpec(
     conflict_cols=("id_sec",),
     update_cols=("codcomp", "codcta", "importe", "codasi", "fecasi", "origen"),
     sync_deletes=True,
+    bronze_row_hash_expr="""
+        ('x' || LEFT(MD5(CONCAT_WS('|',
+            COALESCE(TRIM(codcomp), ''),
+            COALESCE(TRIM(codcta), ''),
+            COALESCE(ROUND(importe * 100)::bigint::text, ''),
+            COALESCE(TRIM(codasi), ''),
+            COALESCE(TO_CHAR(fecasi, 'YYYY-MM-DD'), ''),
+            COALESCE(TRIM(origen), '')
+        )), 15))::bit(60)::bigint
+    """,
+    fiscal_year_window=True,
 )
 
 ENCCON_SPEC = ReconciliationSpec(
     name="enccon",
     fenix_key_set_query="""
-        SELECT id_codasi, fecasi AS fecha_ref
+        SELECT
+            id_codasi,
+            fecasi AS fecha_ref,
+            CAST(CONV(LEFT(MD5(CONCAT_WS('|',
+                COALESCE(TRIM(codcomp), ''),
+                COALESCE(TRIM(codasi), ''),
+                COALESCE(DATE_FORMAT(fecasi, '%Y-%m-%d'), ''),
+                COALESCE(DATE_FORMAT(fecha, '%Y-%m-%d %H:%i:%s'), '')
+            )), 15), 16, 10) AS UNSIGNED) AS row_hash
         FROM security_data.enccon
         WHERE fecasi >= :cutoff
           AND id_codasi <= :watermark
@@ -158,6 +195,15 @@ ENCCON_SPEC = ReconciliationSpec(
     conflict_cols=("id_codasi",),
     update_cols=("codcomp", "codasi", "fecasi", "fecha"),
     sync_deletes=True,
+    bronze_row_hash_expr="""
+        ('x' || LEFT(MD5(CONCAT_WS('|',
+            COALESCE(TRIM(codcomp), ''),
+            COALESCE(TRIM(codasi), ''),
+            COALESCE(TO_CHAR(fecasi, 'YYYY-MM-DD'), ''),
+            COALESCE(TO_CHAR(fecha, 'YYYY-MM-DD HH24:MI:SS'), '')
+        )), 15))::bit(60)::bigint
+    """,
+    fiscal_year_window=True,
 )
 
 ALL_SPECS = (FACTURAS_SPEC, CLIENTES_SPEC, VENDEDORES_SPEC, RENCON_SPEC, ENCCON_SPEC)
