@@ -18,7 +18,9 @@ Las filas con la columna del watermark en NULL tambien se revisan: el incrementa
 
 Solo contabilidad (rencon, enccon) usa sync_deletes: los asientos eliminados en Fenix
 tambien se quitan de Bronze, para que fact_cuentas quede igual al origen. Facturacion no
-borra nada (sus exclusiones se manejan con features.facturas_excluidas).
+borra nada (sus exclusiones se manejan con features.facturas_excluidas), pero si compara
+la fecha de emision (row_hash) y corrige en Bronze los documentos a los que Fenix les
+cambio la emision.
 
 Contabilidad tambien compara VALORES (row_hash), no solo claves, y revisa todo el ano
 fiscal abierto (fiscal_year_window), no solo lookback_days: contabilidad edita y rehace
@@ -38,7 +40,12 @@ from dwh_facturacion.pipelines.backfill.reconciliation_pipeline import Reconcili
 FACTURAS_SPEC = ReconciliationSpec(
     name="facturas",
     fenix_key_set_query="""
-        SELECT f.numfac, DATE(f.emision) AS fecha_ref
+        SELECT
+            f.numfac,
+            DATE(f.emision) AS fecha_ref,
+            CAST(CONV(LEFT(MD5(
+                COALESCE(DATE_FORMAT(f.emision, '%Y-%m-%d'), '')
+            ), 15), 16, 10) AS UNSIGNED) AS row_hash
         FROM security_data.facturas f
         WHERE f.emision >= :cutoff
           AND (f.fecha_hora <= :watermark OR f.fecha_hora IS NULL)
@@ -75,6 +82,15 @@ FACTURAS_SPEC = ReconciliationSpec(
         "subtotal", "desc0", "total_iva", "total", "codven", "emision", "fecha_hora",
     ),
     clean_special_chars_cols=("codven",),
+    # Solo la fecha de emision: Fenix mueve `emision` de facturas y NC ya cargadas sin tocar
+    # fecha_hora (sep-2026: 12 NC; oct-2026: 61 docs dentro del mes y 26 de oct a nov), y
+    # el incremental (fecha_hora > max) no lo ve. Los totales no se comparan: gold se arma
+    # desde tranfac, que no esta en el backfill.
+    bronze_row_hash_expr="""
+        ('x' || LEFT(MD5(
+            COALESCE(TO_CHAR(emision, 'YYYY-MM-DD'), '')
+        ), 15))::bit(60)::bigint
+    """,
 )
 
 CLIENTES_SPEC = ReconciliationSpec(

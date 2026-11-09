@@ -18,7 +18,7 @@ del watermark todavia le toca al incremental: si el backfill lo trajera, (1) lo
 reportaria como "faltante" sin serlo y (2) adelantaria el watermark, haciendo que el
 incremental salte filas que lleguen tarde con fecha anterior.
 
-Si la spec define bronze_row_hash_expr (contabilidad), ademas de claves se comparan
+Si la spec define bronze_row_hash_expr (contabilidad, y en facturas la fecha de emision), ademas de claves se comparan
 valores: el fenix_key_set_query trae un `row_hash` y Bronze calcula el mismo hash; las
 claves presentes en ambos lados con hash distinto se re-traen de Fenix y se hace upsert
 ("updated"). Las filas que salieron de la ventana en Fenix pero siguen existiendo (p.ej.
@@ -261,9 +261,16 @@ class ReconciliationPipeline:
                 result["updated"] = sorted(str(key) for key in changed)
                 result["updated_por_fecha"] = self._count_by_date(fenix_keys.loc[changed, "fecha_ref"])
 
-        if self.spec.sync_deletes:
+        # Claves de la ventana en Bronze que no estan en la ventana de Fenix: o se borraron en
+        # Fenix, o se les cambio la fecha a antes del cutoff. Se revisan si la tabla borra
+        # (sync_deletes) o si compara valores (para actualizar las que se movieron).
+        if self.spec.sync_deletes or self._compare_values:
             candidates = set(bronze_keys.index.difference(fenix_keys.index).tolist())
             deleted, moved = self._deleted_in_fenix(candidates) if candidates else (set(), pd.DataFrame())
+        else:
+            deleted, moved = set(), pd.DataFrame()
+
+        if self.spec.sync_deletes:
             max_deletes = self._max_deletes(len(bronze_keys))
             if len(deleted) > max_deletes:
                 raise RuntimeError(
@@ -275,14 +282,15 @@ class ReconciliationPipeline:
                 self._delete_from_bronze(db_alias, deleted)
                 result["deleted"] = sorted(str(key) for key in deleted)
                 result["deleted_por_fecha"] = self._count_by_date(fechas.values())
-            # Siguen en Fenix pero salieron de la ventana (cambio su fecha contable a antes
-            # del cutoff): se actualizan para que Bronze no se quede con la fecha vieja.
-            if self._compare_values and not moved.empty:
-                self._upsert(db_alias, moved)
-                moved_keys = moved[self.spec.fenix_key_col].tolist()
-                result["updated"] = sorted(result["updated"] + [str(key) for key in moved_keys])
-                result["updated_por_fecha"] = self._count_by_date(
-                    list(fenix_keys.loc[changed, "fecha_ref"]) + list(moved[self.spec.bronze_window_col])
-                )
+
+        # Siguen en Fenix pero salieron de la ventana (cambio su fecha a antes del cutoff):
+        # se actualizan para que Bronze no se quede con la fecha vieja.
+        if self._compare_values and not moved.empty:
+            self._upsert(db_alias, moved)
+            moved_keys = moved[self.spec.fenix_key_col].tolist()
+            result["updated"] = sorted(result["updated"] + [str(key) for key in moved_keys])
+            result["updated_por_fecha"] = self._count_by_date(
+                list(fenix_keys.loc[changed, "fecha_ref"]) + list(moved[self.spec.bronze_window_col])
+            )
 
         return result
