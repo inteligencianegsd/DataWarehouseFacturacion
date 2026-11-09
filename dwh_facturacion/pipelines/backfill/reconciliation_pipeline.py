@@ -71,7 +71,15 @@ class ReconciliationSpec:
 class ReconciliationPipeline:
     # Si una corrida detecta mas borrados que esto, falla sin borrar nada: es mas
     # probable un problema de lectura en Fenix que una eliminacion masiva real.
+    # Tope de borrados: el mayor entre un minimo fijo y una fraccion de las filas de Bronze
+    # en la ventana. En contabilidad la ventana es el ano fiscal (~3M lineas) y un mes con
+    # muchas anulaciones supera 500 lineas borradas (576 en oct-nov 2026); el tope relativo
+    # sigue frenando un borrado masivo por error (p.ej. Fenix devolviendo una ventana vacia).
     MAX_DELETES = 500
+    MAX_DELETES_RATIO = 0.001
+
+    def _max_deletes(self, bronze_rows: int) -> int:
+        return max(self.MAX_DELETES, int(bronze_rows * self.MAX_DELETES_RATIO))
     # Dias despues del 1 de enero en que el ano anterior se sigue revisando: contabilidad
     # hace ajustes de cierre del ano fiscal anterior hasta ~abril.
     FISCAL_CLOSE_GRACE_DAYS = 120
@@ -256,10 +264,11 @@ class ReconciliationPipeline:
         if self.spec.sync_deletes:
             candidates = set(bronze_keys.index.difference(fenix_keys.index).tolist())
             deleted, moved = self._deleted_in_fenix(candidates) if candidates else (set(), pd.DataFrame())
-            if len(deleted) > self.MAX_DELETES:
+            max_deletes = self._max_deletes(len(bronze_keys))
+            if len(deleted) > max_deletes:
                 raise RuntimeError(
                     f"Backfill {self.spec.name}: {len(deleted)} claves de Bronze no existen en "
-                    f"Fenix (tope {self.MAX_DELETES}). No se borro nada; revisar antes."
+                    f"Fenix (tope {max_deletes}). No se borro nada; revisar antes."
                 )
             if deleted:
                 fechas = self._bronze_window_values(db_alias, deleted)
